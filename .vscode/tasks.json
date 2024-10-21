@@ -1,0 +1,26 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "make",
+            "group": {
+            "kind": "build",
+            "isDefault": true
+                    },
+            "problemMatcher": ["$gcc"],
+            "detail": "Run the make command",
+            "options": {
+                "cwd": "${workspaceFolder}/code_template/code_template"
+            }
+        },
+        {
+            "label": "view",
+            "type": "shell",
+            "command": "feh ${workspaceFolder}/code_template/code_template/test.ppm",
+        }
+    ]
+}
