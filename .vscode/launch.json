@@ -28,7 +28,7 @@
                 }
             ],
             "preLaunchTask": "build",
-            "postDebugTask": "view"
+            /*"postDebugTask": "view"*/
         },
 
     ]
