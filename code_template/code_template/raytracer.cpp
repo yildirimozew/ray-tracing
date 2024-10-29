@@ -119,6 +119,42 @@ class BVHTree{
             }
         };
 
+        struct xcompsphere{
+            std::vector<parser::Sphere>* spheres;
+            std::vector<parser::Vec3f>* vertices;
+            xcompsphere(std::vector<parser::Sphere>* pnt, std::vector<parser::Vec3f>* verts){
+                this -> spheres = pnt;
+                this -> vertices = verts;
+            }
+            bool operator() (int sep1, int sep2) {
+                return (*vertices)[(*spheres)[sep1].center_vertex_id-1].x < (*vertices)[(*spheres)[sep2].center_vertex_id-1].x;
+            }
+        };
+
+        struct ycompsphere{
+            std::vector<parser::Sphere>* spheres;
+            std::vector<parser::Vec3f>* vertices;
+            ycompsphere(std::vector<parser::Sphere>* pnt, std::vector<parser::Vec3f>* verts){
+                this -> spheres = pnt;
+                this -> vertices = verts;
+            }
+            bool operator() (int sep1, int sep2) {
+                return (*vertices)[(*spheres)[sep1].center_vertex_id-1].y < (*vertices)[(*spheres)[sep2].center_vertex_id-1].y;
+            }
+        };
+        
+        struct zcompsphere{
+            std::vector<parser::Sphere>* spheres;
+            std::vector<parser::Vec3f>* vertices;
+            zcompsphere(std::vector<parser::Sphere>* pnt, std::vector<parser::Vec3f>* verts){
+                this -> spheres = pnt;
+                this -> vertices = verts;
+            }
+            bool operator() (int sep1, int sep2) {
+                return (*vertices)[(*spheres)[sep1].center_vertex_id-1].z < (*vertices)[(*spheres)[sep2].center_vertex_id-1].z;
+            }
+        };
+
         // bool DoesIntersect(Ray viewRay, frame_coordinates coords){
         //     float t1,t2;
         //     //for x 
@@ -241,11 +277,6 @@ class BVHTree{
 
             }
             
-            // for (int i = 0, size = tri_centers.size(); i<size;i++){
-            //     x_total += tri_centers[i].x;
-            //     y_total += tri_centers[i].y;
-            //     z_total += tri_centers[i].z;
-            // }
 
 
             float x_avg,y_avg,z_avg;
@@ -275,12 +306,6 @@ class BVHTree{
             if(axis==vertical){
                 // split objects into vectors
                 
-                // for(int tri_order=0, size = tri_ids.size();tri_order<size; tri_order++){
-                //     if (tri_centers[tri_ids[tri_order]].x <= x_avg)
-                //         left_tri_ids.push_back(tri_ids[tri_order]);
-                //     else
-                //         right_tri_ids.push_back(tri_ids[tri_order]);
-                // }
                 std::sort(tri_ids.begin(),tri_ids.end(),xcomp(&tri_centers));
                 int i=0;
                 for(int hsize = tri_ids.size()/2; i< hsize;i++)
@@ -288,24 +313,18 @@ class BVHTree{
                 for(int size = tri_ids.size(); i< size; i++)
                     right_tri_ids.push_back(tri_ids[i]);
 
+                std::sort(sphere_ids.begin(),sphere_ids.end(),xcompsphere(&spheres,&vertices));
+                i=0;
+                for(int hsize = sphere_ids.size()/2; i< hsize;i++)
+                    left_sphere_ids.push_back(sphere_ids[i]);
+                for(int size = sphere_ids.size(); i< size; i++)
+                    right_sphere_ids.push_back(sphere_ids[i]);
+
                 
-                for(int sphere_order=0, size = sphere_ids.size();sphere_order<size; sphere_order++){
-                    if (vertices[spheres[sphere_order].center_vertex_id].x <= x_avg)
-                        left_sphere_ids.push_back(sphere_ids[sphere_order]);
-                    else
-                        right_sphere_ids.push_back(sphere_ids[sphere_order]);
-                }
             }
             else if(axis==horizontal){
                 //split objects into vectors
                 
-                // for(int tri_order=0, size = tri_ids.size();tri_order<size; tri_order++){
-                //     if (tri_centers[tri_ids[tri_order]].y <= y_avg)
-                //         left_tri_ids.push_back(tri_ids[tri_order]);
-                //     else
-                //         right_tri_ids.push_back(tri_ids[tri_order]);
-                // }
-
                 std::sort(tri_ids.begin(),tri_ids.end(),ycomp(&tri_centers));
                 int i=0;
                 for(int hsize = tri_ids.size()/2; i< hsize;i++)
@@ -314,22 +333,16 @@ class BVHTree{
                     right_tri_ids.push_back(tri_ids[i]);
 
 
-                for(int sphere_order=0, size = sphere_ids.size();sphere_order<size; sphere_order++){
-                    if (vertices[spheres[sphere_order].center_vertex_id].y <= y_avg)
-                        left_sphere_ids.push_back(sphere_ids[sphere_order]);
-                    else
-                        right_sphere_ids.push_back(sphere_ids[sphere_order]);
-                }
+                std::sort(sphere_ids.begin(),sphere_ids.end(),ycompsphere(&spheres,&vertices));
+                i=0;
+                for(int hsize = sphere_ids.size()/2; i< hsize;i++)
+                    left_sphere_ids.push_back(sphere_ids[i]);
+                for(int size = sphere_ids.size(); i< size; i++)
+                    right_sphere_ids.push_back(sphere_ids[i]);
             }
             else{
                 //split objects into vectors
                 
-                // for(int tri_order=0, size = tri_ids.size();tri_order<size; tri_order++){
-                //     if (tri_centers[tri_ids[tri_order]].z <= z_avg)
-                //         left_tri_ids.push_back(tri_ids[tri_order]);
-                //     else
-                //         right_tri_ids.push_back(tri_ids[tri_order]);
-                // }
 
                 std::sort(tri_ids.begin(),tri_ids.end(),zcomp(&tri_centers));
                 int i=0;
@@ -338,12 +351,12 @@ class BVHTree{
                 for(int size = tri_ids.size(); i< size; i++)
                     right_tri_ids.push_back(tri_ids[i]);
 
-                for(int sphere_order=0, size = sphere_ids.size();sphere_order<size; sphere_order++){
-                    if (vertices[spheres[sphere_order].center_vertex_id].z <= z_avg)
-                        left_sphere_ids.push_back(sphere_ids[sphere_order]);
-                    else
-                        right_sphere_ids.push_back(sphere_ids[sphere_order]);
-                }
+                std::sort(sphere_ids.begin(),sphere_ids.end(),zcompsphere(&spheres,&vertices));
+                i=0;
+                for(int hsize = sphere_ids.size()/2; i< hsize;i++)
+                    left_sphere_ids.push_back(sphere_ids[i]);
+                for(int size = sphere_ids.size(); i< size; i++)
+                    right_sphere_ids.push_back(sphere_ids[i]);
             }
             splitAxis nextSplitAxis;
             switch (axis) {
@@ -357,6 +370,39 @@ class BVHTree{
                     nextSplitAxis = horizontal;
                     break;
             }
+
+            //Make sure it is split evenly
+            if(
+                left_sphere_ids.size() + left_tri_ids.size() > max_leaf_elem_count &&
+                right_sphere_ids.size() == 0 &&
+                right_tri_ids.size() ==0
+            ){
+                if(left_sphere_ids.size()>0){
+                    right_sphere_ids.push_back(left_sphere_ids.back());
+                    left_sphere_ids.pop_back();
+                }
+                else{
+                    right_tri_ids.push_back(left_tri_ids.back());
+                    left_tri_ids.pop_back();
+                }
+            }
+            if(
+                right_sphere_ids.size() + right_tri_ids.size() > max_leaf_elem_count &&
+                left_sphere_ids.size() == 0 &&
+                left_tri_ids.size() ==0
+            ){
+                if(right_sphere_ids.size()>0){
+                    left_sphere_ids.push_back(right_sphere_ids.back());
+                    right_sphere_ids.pop_back();
+                }
+                else{
+                    left_tri_ids.push_back(right_tri_ids.back());
+                    right_tri_ids.pop_back();
+                }
+            }
+
+
+
             BVHNode* current_node = new BVHNode;
             current_node -> left = construct_helpers(
                 vertices,
@@ -615,7 +661,6 @@ int main(int argc, char* argv[])
 
         for (int y = 0; y < height; ++y)
         {
-            printf("Percentage finished: %f\n", 100 * (float)(y) / (height));
             for (int x = 0; x < width; ++x)
             {
                 float s_u = (x + 0.5) * (r - l) / width;
