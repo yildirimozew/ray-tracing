@@ -124,6 +124,7 @@ parser::Vec3f diffuse_shading(std::vector<parser::PointLight> &point_lights, Ray
     parser::Vec3f summed_result = {0, 0, 0};
     for (int l = 0; l < point_lights.size(); l++)
     {
+        /*normal bulma algoritmasını buraya taşımayı dene*/
         parser::Vec3f light_position = point_lights[l].position;
         parser::Vec3f distance_vector = subtract(light_position, point);
         parser::Vec3f normalized_distance_vector = normalize(distance_vector);
@@ -168,8 +169,8 @@ int main(int argc, char *argv[])
     std::vector<Ray> normals(triangles.size());
     for (int t = 0; t < triangles.size(); t++)
     {
-        parser::Vec3f direction_one = subtract(vertices[triangles[t].indices.v2_id - 1], vertices[triangles[t].indices.v1_id - 1]);
-        parser::Vec3f direction_two = subtract(vertices[triangles[t].indices.v0_id - 1], vertices[triangles[t].indices.v1_id - 1]);
+        parser::Vec3f direction_one = subtract(vertices[triangles[t].indices.v0_id - 1], vertices[triangles[t].indices.v2_id - 1]);
+        parser::Vec3f direction_two = subtract(vertices[triangles[t].indices.v1_id - 1], vertices[triangles[t].indices.v2_id - 1]);
         parser::Vec3f normal = cross_product(direction_one, direction_two);
         parser::Vec3f normalized_normal = normalize(normal);
         normals[t] = Ray{vertices[triangles[t].indices.v2_id - 1], normalized_normal};
@@ -193,23 +194,22 @@ int main(int argc, char *argv[])
         parser::Vec3f q_2_2 = multipy_with_constant(cam.up, t);
         parser::Vec3f q_2 = add(q_2_1, q_2_2);
         parser::Vec3f q = add(m, q_2);
-        for (int y = 365; y < height; ++y)
+        for (int y = 0; y < height; ++y)
         {
-            for (int x = 560; x < width; ++x)
+            for (int x = 0; x < width; ++x)
             {
                 Ray normal;
                 parser::Material material;
                 parser::Vec3f hit_point = {0, 0, 0};
                 float s_u = (x + 0.5) * (r - l) / width;
                 float minus_s_v = -(y + 0.5) * (t - b) / height;
-                int min_t = __INT_MAX__;
+                float min_t = __INT_MAX__;
                 parser::Vec3f s_1_1 = multipy_with_constant(u, s_u);
                 parser::Vec3f s_1_2 = multipy_with_constant(cam.up, minus_s_v);
                 parser::Vec3f s_1 = add(s_1_1, s_1_2);
                 parser::Vec3f s = add(q, s_1);
                 parser::Vec3f vr_1 = subtract(s, cam.position);
                 Ray view_ray = {cam.position, normalize(vr_1)};
-                /*temporarily removed normalization*/
                 if (print_counter++ == 500)
                 {
                     float percentage = (float)(y * width + x) / (height * width) * 100;
@@ -255,8 +255,8 @@ int main(int argc, char *argv[])
                         float green = color.y > 255 ? 255 : color.y;
                         float blue = color.z > 255 ? 255 : color.z;
                         image[3 * (y * width + x)] = (int)red;
-                        image[3 * (y * width + x) + 1] = (int)blue;
-                        image[3 * (y * width + x) + 2] = (int)green;
+                        image[3 * (y * width + x) + 1] = (int)green;
+                        image[3 * (y * width + x) + 2] = (int)blue;
                     }
                     else
                     {

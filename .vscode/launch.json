@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/code_template/code_template/raytracer",
             "args": [
-                "${workspaceFolder}/test_scenes/inputs/monkey.xml"
+                "${workspaceFolder}/test_scenes/inputs/berserker.xml"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/code_template/code_template/",
