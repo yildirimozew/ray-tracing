@@ -193,9 +193,9 @@ int main(int argc, char *argv[])
         parser::Vec3f q_2_2 = multipy_with_constant(cam.up, t);
         parser::Vec3f q_2 = add(q_2_1, q_2_2);
         parser::Vec3f q = add(m, q_2);
-        for (int y = 0; y < height; ++y)
+        for (int y = 365; y < height; ++y)
         {
-            for (int x = 0; x < width; ++x)
+            for (int x = 560; x < width; ++x)
             {
                 Ray normal;
                 parser::Material material;
