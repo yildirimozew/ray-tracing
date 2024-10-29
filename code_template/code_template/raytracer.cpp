@@ -82,33 +82,6 @@ parser::Vec3f normalize(parser::Vec3f &a)
     return c;
 }
 
-/*float intersect_triangle(parser::Vec3i vertex_ids, Ray view_ray, std::vector<parser::Vec3f> vertices)
-{
-    parser::Vec3f E1 = subtract(vertices[vertex_ids.y - 1], vertices[vertex_ids.x - 1]);
-    parser::Vec3f E2 = subtract(vertices[vertex_ids.z - 1], vertices[vertex_ids.x - 1]);
-    parser::Vec3f P = cross_product(view_ray.direction, E2);
-    float det = dot(E1, P);
-    float inv_det = 1 / det;
-    parser::Vec3f T = subtract(view_ray.origin, vertices[vertex_ids.x - 1]);
-    float u = dot(T, P) * inv_det;
-    if (u < 0 || u > 1)
-    {
-        return -1;
-    }
-    parser::Vec3f Q = cross_product(T, E1);
-    float v = dot(view_ray.direction, Q) * inv_det;
-    if (v < 0 || u + v > 1)
-    {
-        return -1;
-    }
-    float intersection_t = dot(E2, Q) * inv_det;
-    if (intersection_t < 0)
-    {
-        return -1;
-    }
-    return intersection_t;
-}*/
-
 float intersect_triangle(parser::Face &vertex_ids, Ray &view_ray, std::vector<parser::Vec3f> &vertices)
 {
     parser::Vec3f E1 = subtract(vertices[vertex_ids.v1_id - 1], vertices[vertex_ids.v0_id - 1]);
@@ -157,13 +130,18 @@ parser::Vec3f diffuse_shading(std::vector<parser::PointLight> &point_lights, Ray
         float distance_squared = pow(distance_vector.x, 2) + pow(distance_vector.y, 2) + pow(distance_vector.z, 2);
         parser::Vec3f received_irradiance = divide(point_lights[l].intensity, distance_squared);
         float cos_theta = dot(normal.direction, normalized_distance_vector);
-        /*should this be normalized or not?*/
         cos_theta = cos_theta > 0 ? cos_theta : 0;
         parser::Vec3f result_1 = multipy(material.diffuse, received_irradiance);
         parser::Vec3f result = multipy_with_constant(result_1, cos_theta);
         summed_result = add(result, summed_result);
     }
     return summed_result;
+}
+
+parser::Vec3f ambient_shading(parser::Vec3f ambient_coefficient, parser::Material &material)
+{
+    parser::Vec3f ambient = multipy(ambient_coefficient, material.ambient);
+    return ambient;
 }
 
 int main(int argc, char *argv[])
@@ -190,11 +168,9 @@ int main(int argc, char *argv[])
     std::vector<Ray> normals(triangles.size());
     for (int t = 0; t < triangles.size(); t++)
     {
-        parser::Vec3f direction_one = subtract(vertices[triangles[t].indices.v1_id - 1], vertices[triangles[t].indices.v0_id - 1]);
-        parser::Vec3f direction_two = subtract(vertices[triangles[t].indices.v2_id - 1], vertices[triangles[t].indices.v0_id - 1]);
-        Ray one = {vertices[triangles[t].indices.v2_id - 1], direction_one};
-        Ray two = {vertices[triangles[t].indices.v2_id - 1], direction_two};
-        parser::Vec3f normal = cross_product(one.direction, two.direction);
+        parser::Vec3f direction_one = subtract(vertices[triangles[t].indices.v2_id - 1], vertices[triangles[t].indices.v1_id - 1]);
+        parser::Vec3f direction_two = subtract(vertices[triangles[t].indices.v0_id - 1], vertices[triangles[t].indices.v1_id - 1]);
+        parser::Vec3f normal = cross_product(direction_one, direction_two);
         parser::Vec3f normalized_normal = normalize(normal);
         normals[t] = Ray{vertices[triangles[t].indices.v2_id - 1], normalized_normal};
     }
@@ -204,7 +180,6 @@ int main(int argc, char *argv[])
         int height = cam.image_height;
         int width = cam.image_width;
         std::string name = cam.image_name;
-        /*not sure about these*/
         float l = cam.near_plane.x;
         float r = cam.near_plane.w;
         float b = cam.near_plane.z;
@@ -234,6 +209,7 @@ int main(int argc, char *argv[])
                 parser::Vec3f s = add(q, s_1);
                 parser::Vec3f vr_1 = subtract(s, cam.position);
                 Ray view_ray = {cam.position, normalize(vr_1)};
+                /*temporarily removed normalization*/
                 if (print_counter++ == 500)
                 {
                     float percentage = (float)(y * width + x) / (height * width) * 100;
@@ -272,14 +248,12 @@ int main(int argc, char *argv[])
                 {
                     if (hit_point.x != 0)
                     {
-                        parser::Vec3f color = diffuse_shading(scene.point_lights, normal, hit_point, material);
+                        parser::Vec3f ambient_shading_part = ambient_shading(scene.ambient_light, material);
+                        parser::Vec3f diffuse_shading_part = diffuse_shading(scene.point_lights, normal, hit_point, material);
+                        parser::Vec3f color = add(ambient_shading_part, diffuse_shading_part);
                         float red = color.x > 255 ? 255 : color.x;
                         float green = color.y > 255 ? 255 : color.y;
                         float blue = color.z > 255 ? 255 : color.z;
-                        if (red != 255)
-                        {
-                            printf("red: %f, green: %f, blue: %f\n", red, green, blue);
-                        }
                         image[3 * (y * width + x)] = (int)red;
                         image[3 * (y * width + x) + 1] = (int)blue;
                         image[3 * (y * width + x) + 2] = (int)green;
