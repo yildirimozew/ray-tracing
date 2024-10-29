@@ -2,9 +2,238 @@
 #include "parser.h"
 #include "ppm.h"
 #include <cmath>
+#include "float.h"
 /*may need to add pthread*/
 
 typedef unsigned char RGB[3];
+
+struct frame_coordinates{
+    float xmin=FLT_MAX;
+    float xmax=-FLT_MAX;
+    float ymin=FLT_MAX;
+    float ymax=-FLT_MAX;
+    float zmin=FLT_MAX;
+    float zmax=-FLT_MAX;
+};
+
+
+
+class BVHNode{
+    public:
+        BVHNode* left;
+        BVHNode* right;
+        std::vector<int> triangles;
+        std::vector<int> spheres;
+        frame_coordinates coords;
+        BVHNode(){
+            left = nullptr;
+            right = nullptr;
+        }
+        ~BVHNode(){
+            if (left)
+                delete left;
+            if (right)
+                delete right;
+            delete this;
+        }
+};
+
+
+
+
+
+
+class BVHTree{
+    public:
+        BVHNode* root;
+        int max_leaf_elem_count;
+        enum splitAxis{
+            vertical=0, // cut left and right
+            horizontal=1, //cut down and up
+            curtain=2 // cut front and back
+
+        };
+        
+
+        BVHTree(){
+            root = nullptr;
+            max_leaf_elem_count = 1;
+        }
+        BVHTree(int elem_count){
+            root = nullptr;
+            max_leaf_elem_count = elem_count;
+        }
+        ~BVHTree(){
+            delete root;
+        }
+        
+
+
+        BVHNode* construct_helpers(
+            std::vector<parser::Vec3f>& vertices,
+            std::vector<parser::Triangle>& triangles,
+            std::vector<parser::Sphere>& spheres,
+            std::vector<parser::Vec3f>& tri_centers,
+            std::vector<int>& tri_ids,
+            std::vector<int>& sphere_ids,
+            splitAxis axis
+        ){
+
+            frame_coordinates edge_vals;
+            for(int tri_order=0, size = tri_ids.size();tri_order<size; tri_order++){
+                //calculate min max values
+                edge_vals.xmin = edge_vals.xmin>vertices[triangles[tri_order].indices.v0_id].x?vertices[triangles[tri_order].indices.v0_id].x:edge_vals.xmin;
+                edge_vals.xmin = edge_vals.xmin>vertices[triangles[tri_order].indices.v1_id].x?vertices[triangles[tri_order].indices.v1_id].x:edge_vals.xmin;
+                edge_vals.xmin = edge_vals.xmin>vertices[triangles[tri_order].indices.v2_id].x?vertices[triangles[tri_order].indices.v2_id].x:edge_vals.xmin;
+                edge_vals.xmax = edge_vals.xmax<vertices[triangles[tri_order].indices.v0_id].x?vertices[triangles[tri_order].indices.v0_id].x:edge_vals.xmax;
+                edge_vals.xmax = edge_vals.xmax<vertices[triangles[tri_order].indices.v1_id].x?vertices[triangles[tri_order].indices.v1_id].x:edge_vals.xmax;
+                edge_vals.xmax = edge_vals.xmax<vertices[triangles[tri_order].indices.v2_id].x?vertices[triangles[tri_order].indices.v2_id].x:edge_vals.xmax;
+                edge_vals.ymin = edge_vals.ymin>vertices[triangles[tri_order].indices.v0_id].y?vertices[triangles[tri_order].indices.v0_id].y:edge_vals.ymin;
+                edge_vals.ymin = edge_vals.ymin>vertices[triangles[tri_order].indices.v1_id].y?vertices[triangles[tri_order].indices.v1_id].y:edge_vals.ymin;
+                edge_vals.ymin = edge_vals.ymin>vertices[triangles[tri_order].indices.v2_id].y?vertices[triangles[tri_order].indices.v2_id].y:edge_vals.ymin;
+                edge_vals.ymax = edge_vals.ymax<vertices[triangles[tri_order].indices.v0_id].y?vertices[triangles[tri_order].indices.v0_id].y:edge_vals.ymax;
+                edge_vals.ymax = edge_vals.ymax<vertices[triangles[tri_order].indices.v1_id].y?vertices[triangles[tri_order].indices.v1_id].y:edge_vals.ymax;
+                edge_vals.ymax = edge_vals.ymax<vertices[triangles[tri_order].indices.v2_id].y?vertices[triangles[tri_order].indices.v2_id].y:edge_vals.ymax;
+                edge_vals.zmin = edge_vals.zmin>vertices[triangles[tri_order].indices.v0_id].z?vertices[triangles[tri_order].indices.v0_id].z:edge_vals.zmin;
+                edge_vals.zmin = edge_vals.zmin>vertices[triangles[tri_order].indices.v1_id].z?vertices[triangles[tri_order].indices.v1_id].z:edge_vals.zmin;
+                edge_vals.zmin = edge_vals.zmin>vertices[triangles[tri_order].indices.v2_id].z?vertices[triangles[tri_order].indices.v2_id].z:edge_vals.zmin;
+                edge_vals.zmax = edge_vals.zmax<vertices[triangles[tri_order].indices.v0_id].z?vertices[triangles[tri_order].indices.v0_id].z:edge_vals.zmax;
+                edge_vals.zmax = edge_vals.zmax<vertices[triangles[tri_order].indices.v1_id].z?vertices[triangles[tri_order].indices.v1_id].z:edge_vals.zmax;
+                edge_vals.zmax = edge_vals.zmax<vertices[triangles[tri_order].indices.v2_id].z?vertices[triangles[tri_order].indices.v2_id].z:edge_vals.zmax;
+                
+            }
+            for(int sphere_order=0, size = sphere_ids.size();sphere_order<size; sphere_order++){
+                //calculate min max values
+                parser::Vec3f center = vertices[spheres[sphere_order].center_vertex_id];
+                float radius = spheres[sphere_order].radius;
+                edge_vals.xmin = edge_vals.xmin > center.x - radius ? center.x - radius : edge_vals.xmin;
+                edge_vals.xmax = edge_vals.xmax < center.x + radius ? center.x + radius : edge_vals.xmax;
+                edge_vals.ymin = edge_vals.ymin > center.y - radius ? center.y - radius : edge_vals.ymin;
+                edge_vals.ymax = edge_vals.ymax < center.y + radius ? center.y + radius : edge_vals.ymax;
+                edge_vals.zmin = edge_vals.zmin > center.z - radius ? center.z - radius : edge_vals.zmin;
+                edge_vals.zmax = edge_vals.zmax < center.z + radius ? center.z + radius : edge_vals.zmax;
+            }
+            
+            
+            if(tri_ids.size() + sphere_ids.size() <= max_leaf_elem_count){ //If element count is lower, then make it leaf node
+                BVHNode* current_node = new BVHNode;
+                current_node -> triangles = tri_ids;
+                current_node -> spheres = sphere_ids;
+                current_node -> coords = edge_vals;
+                return current_node;
+            }
+
+
+
+            std::vector<int> left_tri_ids;
+            std::vector<int> left_sphere_ids;
+            std::vector<int> right_tri_ids;
+            std::vector<int> right_sphere_ids;
+
+            
+            
+            if(axis==vertical){
+                // split objects into vectors
+                float x_avg = (edge_vals.xmax + edge_vals.xmin)/2.;
+                for(int tri_order=0, size = tri_ids.size();tri_order<size; tri_order++){
+                    if (tri_centers[tri_ids[tri_order]].x < x_avg)
+                        left_tri_ids.push_back(tri_ids[tri_order]);
+                    else
+                        right_tri_ids.push_back(tri_ids[tri_order]);
+                }
+                for(int sphere_order=0, size = sphere_ids.size();sphere_order<size; sphere_order++){
+                    if (vertices[spheres[sphere_order].center_vertex_id].x < x_avg)
+                        left_sphere_ids.push_back(sphere_ids[sphere_order]);
+                    else
+                        right_sphere_ids.push_back(sphere_ids[sphere_order]);
+                }
+            }
+            else if(axis==horizontal){
+                //split objects into vectors
+                float y_avg = (edge_vals.ymax + edge_vals.ymin)/2.;
+                for(int tri_order=0, size = tri_ids.size();tri_order<size; tri_order++){
+                    if (tri_centers[tri_ids[tri_order]].y < y_avg)
+                        left_tri_ids.push_back(tri_ids[tri_order]);
+                    else
+                        right_tri_ids.push_back(tri_ids[tri_order]);
+                }
+                for(int sphere_order=0, size = sphere_ids.size();sphere_order<size; sphere_order++){
+                    if (vertices[spheres[sphere_order].center_vertex_id].y < y_avg)
+                        left_sphere_ids.push_back(sphere_ids[sphere_order]);
+                    else
+                        right_sphere_ids.push_back(sphere_ids[sphere_order]);
+                }
+            }
+            else{
+                //split objects into vectors
+                float z_avg = (edge_vals.zmax + edge_vals.zmin)/2.;
+                for(int tri_order=0, size = tri_ids.size();tri_order<size; tri_order++){
+                    if (tri_centers[tri_ids[tri_order]].z < z_avg)
+                        left_tri_ids.push_back(tri_ids[tri_order]);
+                    else
+                        right_tri_ids.push_back(tri_ids[tri_order]);
+                }
+                for(int sphere_order=0, size = sphere_ids.size();sphere_order<size; sphere_order++){
+                    if (vertices[spheres[sphere_order].center_vertex_id].z < z_avg)
+                        left_sphere_ids.push_back(sphere_ids[sphere_order]);
+                    else
+                        right_sphere_ids.push_back(sphere_ids[sphere_order]);
+                }
+            }
+            BVHNode* current_node = new BVHNode;
+            current_node -> left = construct_helpers(
+                vertices,
+                triangles,
+                spheres,
+                tri_centers,
+                left_tri_ids,
+                left_sphere_ids,
+                static_cast<splitAxis>(axis+1%3)
+            );
+            current_node -> right = construct_helpers(
+                vertices,
+                triangles,
+                spheres,
+                tri_centers,
+                right_tri_ids,
+                right_sphere_ids,
+                static_cast<splitAxis>(axis+1%3)
+            );
+            current_node -> coords = edge_vals;
+            return current_node;
+        }
+
+
+
+
+        void construct(
+            std::vector<parser::Vec3f>& vertices,
+            std::vector<parser::Triangle>& triangles,
+            std::vector<parser::Sphere>& spheres,
+            std::vector<parser::Vec3f>& tri_centers
+        ){  
+            std::vector<int> tri_ids;
+            std::vector<int> sphere_ids;
+            for(int i=0, triangle_num=tri_centers.size();i<triangle_num;++i){
+                tri_ids.push_back(i);
+            }
+            for(int i=0, sphere_num=spheres.size();i<sphere_num;++i){
+                sphere_ids.push_back(i);
+            }
+
+            root = construct_helpers(
+                vertices,
+                triangles,
+                spheres,
+                tri_centers,
+                tri_ids,
+                sphere_ids,
+                vertical
+            );
+        }
+};
+
+
 
 struct Ray{
     parser::Vec3f origin;
