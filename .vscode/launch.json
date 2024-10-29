@@ -9,7 +9,9 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/code_template/code_template/raytracer",
-            "args": ["${workspaceFolder}/test_scenes/inputs/simple.xml"],
+            "args": [
+                "${workspaceFolder}/test_scenes/inputs/simple.xml"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/code_template/code_template/",
             "environment": [],
@@ -30,6 +32,5 @@
             "preLaunchTask": "build",
             /*"postDebugTask": "view"*/
         },
-
     ]
 }

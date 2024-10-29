@@ -8,10 +8,12 @@
             "type": "shell",
             "command": "make",
             "group": {
-            "kind": "build",
-            "isDefault": true
-                    },
-            "problemMatcher": ["$gcc"],
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
             "detail": "Run the make command",
             "options": {
                 "cwd": "${workspaceFolder}/code_template/code_template"
@@ -20,7 +22,7 @@
         {
             "label": "view",
             "type": "shell",
-            "command": "feh ${workspaceFolder}/code_template/code_template/test.ppm",
+            "command": "feh ${workspaceFolder}/code_template/code_template/monkey.ppm",
         }
     ]
 }
