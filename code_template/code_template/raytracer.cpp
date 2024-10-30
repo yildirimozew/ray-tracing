@@ -145,6 +145,31 @@ parser::Vec3f ambient_shading(parser::Vec3f ambient_coefficient, parser::Materia
     return ambient;
 }
 
+parser::Vec3f blinnphong_shading(std::vector<parser::PointLight> &point_lights, Ray &normal, parser::Vec3f &point, parser::Material &material, parser::Vec3f &outgoingVec){
+    parser::Vec3f summed_result = {0, 0, 0};
+    for (int l = 0; l < point_lights.size(); l++)
+    {
+        parser::Vec3f light_position = point_lights[l].position;
+        parser::Vec3f distance_vector = subtract(light_position, point);
+        parser::Vec3f normalized_distance_vector = normalize(distance_vector);
+        float distance_squared = pow(distance_vector.x, 2) + pow(distance_vector.y, 2) + pow(distance_vector.z, 2);
+        parser::Vec3f received_irradiance = divide(point_lights[l].intensity, distance_squared);
+        parser::Vec3f halfVec = add(distance_vector,outgoingVec);
+        parser::Vec3f normalizedhalfVec = normalize(halfVec);
+
+        
+
+        float cos_alpha = std::max(float(0),dot(normal.direction, normalizedhalfVec));
+        float cos_alpha_exponed = pow(cos_alpha,material.phong_exponent);
+        parser::Vec3f result_1 = multipy(material.specular, received_irradiance);
+        parser::Vec3f result = multipy_with_constant(result_1, cos_alpha_exponed);
+        summed_result = add(result, summed_result);
+    }
+    return summed_result;
+}
+
+
+
 int main(int argc, char *argv[])
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -250,7 +275,13 @@ int main(int argc, char *argv[])
                     {
                         parser::Vec3f ambient_shading_part = ambient_shading(scene.ambient_light, material);
                         parser::Vec3f diffuse_shading_part = diffuse_shading(scene.point_lights, normal, hit_point, material);
-                        parser::Vec3f color = add(ambient_shading_part, diffuse_shading_part);
+                        parser::Vec3f outgoingVec = view_ray.direction;
+                        outgoingVec.x = -outgoingVec.x;
+                        outgoingVec.y = -outgoingVec.y;
+                        outgoingVec.z = -outgoingVec.z;
+                        parser::Vec3f BlinnPhong_part = blinnphong_shading(scene.point_lights, normal, hit_point, material, outgoingVec);
+                        parser::Vec3f color1 = add(ambient_shading_part, diffuse_shading_part);
+                        parser::Vec3f color = add(BlinnPhong_part, color1);
                         float red = color.x > 255 ? 255 : color.x;
                         float green = color.y > 255 ? 255 : color.y;
                         float blue = color.z > 255 ? 255 : color.z;
