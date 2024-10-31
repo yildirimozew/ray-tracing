@@ -66,7 +66,7 @@ parser::Vec3f add(parser::Vec3f &a, parser::Vec3f &b)
     return c;
 }
 
-parser::Vec3f divide(parser::Vec3f &a, float &b)
+parser::Vec3f divide(parser::Vec3f &a, float b)
 {
     parser::Vec3f c;
     c.x = a.x / b;
@@ -231,7 +231,7 @@ parser::Vec3f apply_shading(parser::Scene& scene,HitRecord& hit_record,Ray& view
         parser::Vec3f tmp3 = add(tmp2,view_ray.direction);
         reflect_ray.direction = normalize(tmp3);
         reflect_ray.origin = hit_point;
-        reflect_ray.origin.y += 1e-5;
+        reflect_ray.origin.y += 1e-4;
         parser::Vec3f color2 = computeColor(triangles,scene,reflect_ray,normals,current_depth+1,max_depth);
         color2 = multiply(color2,material.mirror);
         color = add(color,color2);
@@ -244,7 +244,7 @@ parser::Vec3f apply_shading(parser::Scene& scene,HitRecord& hit_record,Ray& view
         float t = distance_vector.x/normalized_distance_vector.x;
         Ray tmp_ray;
         tmp_ray.direction = normalized_distance_vector;
-        parser::Vec3f epsilon = multiply_with_constant(normalized_distance_vector,1e-5);
+        parser::Vec3f epsilon = multiply_with_constant(normalized_distance_vector,1e-3);
         tmp_ray.origin = add(hit_point,epsilon);
         HitRecord lightHitRecord = findHitRecord(triangles,scene,tmp_ray,normals);
         if(lightHitRecord.min_t == __FLT_MAX__ || lightHitRecord.min_t >= t)
@@ -351,34 +351,42 @@ int main(int argc, char *argv[])
         parser::Camera cam = scene.cameras[i];
         int height = cam.image_height;
         int width = cam.image_width;
+        unsigned char *image = new unsigned char[height * width * 3];
         std::string name = cam.image_name;
         float l = cam.near_plane.x;
-        float r = cam.near_plane.w;
+        float r = cam.near_plane.y;
         float b = cam.near_plane.z;
-        float t = cam.near_plane.y;
-        unsigned char *image = new unsigned char[height * width * 3];
+        float t = cam.near_plane.w;
         int print_counter = 0;
-        parser::Vec3f m_2 = multiply_with_constant(cam.gaze, cam.near_distance);
-        parser::Vec3f m = add(cam.position, m_2);
+        float distance = cam.near_distance;
         parser::Vec3f u = cross_product(cam.gaze, cam.up);
-        parser::Vec3f q_2_1 = multiply_with_constant(u, l);
-        parser::Vec3f q_2_2 = multiply_with_constant(cam.up, t);
-        parser::Vec3f q_2 = add(q_2_1, q_2_2);
-        parser::Vec3f q = add(m, q_2);
+        u = normalize(u);
+        parser::Vec3f m_distance = multiply_with_constant(cam.gaze, distance) ;
+        parser::Vec3f m = add(cam.position,m_distance);
+        parser::Vec3f tmp = multiply_with_constant(u,l);
+        parser::Vec3f tmp2 = multiply_with_constant(cam.up,t);
+        parser::Vec3f q = add(m, tmp);
+        q = add(q, tmp2);
+
+
+
+
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
                 //Compute view ray
-                float s_u = (x + 0.5) * (r - l) / width;
-                float minus_s_v = -(y + 0.5) * (t - b) / height;
-                float min_t = __INT_MAX__;
-                parser::Vec3f s_1_1 = multiply_with_constant(u, s_u);
-                parser::Vec3f s_1_2 = multiply_with_constant(cam.up, minus_s_v);
-                parser::Vec3f s_1 = add(s_1_1, s_1_2);
-                parser::Vec3f s = add(q, s_1);
-                parser::Vec3f vr_1 = subtract(s, cam.position);
-                Ray view_ray = {cam.position, normalize(vr_1)};
+                parser::Vec3f q_u = multiply_with_constant(u, (x + 0.5) * (r - l) / width);
+                parser::Vec3f q_v =multiply_with_constant(cam.up , (y + 0.5) * (t - b) / height);
+                parser::Vec3f s;
+                s = subtract(q_u, q_v);
+                s = add(q,s);
+                parser::Vec3f d = subtract(s, cam.position);
+
+                
+                Ray view_ray;
+                view_ray.origin = cam.position;
+                view_ray.direction = normalize(d);
 
 
                 if (print_counter++ == 500)
@@ -389,7 +397,7 @@ int main(int argc, char *argv[])
                 }
 
                 //compute color
-                parser::Vec3f color = computeColor(triangles, scene, view_ray, normals, 0,scene.max_recursion_depth);
+                parser::Vec3f color = computeColor(triangles, scene, view_ray, normals, 1 ,scene.max_recursion_depth);
                 image[3 * (y * width + x)] = color.x;
                 image[3 * (y * width + x) + 1] = color.y;
                 image[3 * (y * width + x) + 2] = color.z;
