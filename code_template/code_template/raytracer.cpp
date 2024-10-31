@@ -13,6 +13,14 @@ struct Ray
     parser::Vec3f direction;
 };
 
+struct HitRecord{
+    parser::Vec3f hit_point;
+    parser::Material material;
+    Ray normal;
+    float min_t;
+};
+
+
 parser::Vec3f cross_product(parser::Vec3f &a, parser::Vec3f &b)
 {
     parser::Vec3f c;
@@ -22,7 +30,7 @@ parser::Vec3f cross_product(parser::Vec3f &a, parser::Vec3f &b)
     return c;
 }
 
-parser::Vec3f multipy(parser::Vec3f &a, parser::Vec3f &b)
+parser::Vec3f multiply(parser::Vec3f &a, parser::Vec3f &b)
 {
     parser::Vec3f c;
     c.x = a.x * b.x;
@@ -31,7 +39,7 @@ parser::Vec3f multipy(parser::Vec3f &a, parser::Vec3f &b)
     return c;
 }
 
-parser::Vec3f multipy_with_constant(parser::Vec3f &a, float &b)
+parser::Vec3f multiply_with_constant(parser::Vec3f &a, float &b)
 {
     parser::Vec3f c;
     c.x = a.x * b;
@@ -132,8 +140,8 @@ parser::Vec3f diffuse_shading(std::vector<parser::PointLight> &point_lights, Ray
         parser::Vec3f received_irradiance = divide(point_lights[l].intensity, distance_squared);
         float cos_theta = dot(normal.direction, normalized_distance_vector);
         cos_theta = cos_theta > 0 ? cos_theta : 0;
-        parser::Vec3f result_1 = multipy(material.diffuse, received_irradiance);
-        parser::Vec3f result = multipy_with_constant(result_1, cos_theta);
+        parser::Vec3f result_1 = multiply(material.diffuse, received_irradiance);
+        parser::Vec3f result = multiply_with_constant(result_1, cos_theta);
         summed_result = add(result, summed_result);
     }
     return summed_result;
@@ -141,7 +149,7 @@ parser::Vec3f diffuse_shading(std::vector<parser::PointLight> &point_lights, Ray
 
 parser::Vec3f ambient_shading(parser::Vec3f ambient_coefficient, parser::Material &material)
 {
-    parser::Vec3f ambient = multipy(ambient_coefficient, material.ambient);
+    parser::Vec3f ambient = multiply(ambient_coefficient, material.ambient);
     return ambient;
 }
 
@@ -161,12 +169,140 @@ parser::Vec3f blinnphong_shading(std::vector<parser::PointLight> &point_lights, 
 
         float cos_alpha = std::max(float(0),dot(normal.direction, normalizedhalfVec));
         float cos_alpha_exponed = pow(cos_alpha,material.phong_exponent);
-        parser::Vec3f result_1 = multipy(material.specular, received_irradiance);
-        parser::Vec3f result = multipy_with_constant(result_1, cos_alpha_exponed);
+        parser::Vec3f result_1 = multiply(material.specular, received_irradiance);
+        parser::Vec3f result = multiply_with_constant(result_1, cos_alpha_exponed);
         summed_result = add(result, summed_result);
     }
     return summed_result;
 }
+
+HitRecord findHitRecord(std::vector<parser::Triangle>& triangles, parser::Scene& scene, Ray& view_ray, std::vector<Ray>& normals){
+    std::vector<parser::Vec3f>& vertices = scene.vertex_data;
+    float min_t = __FLT_MAX__;
+    parser::Vec3f hit_point = {0, 0, 0};
+    Ray normal;
+    parser::Material material;
+    for (int t = 0; t < triangles.size(); t++)
+    {
+        float intersection_t = intersect_triangle(triangles[t].indices, view_ray, vertices);
+        if (intersection_t < min_t && intersection_t > 0)
+        {
+            min_t = intersection_t;
+            normal = normals[t];
+            material = scene.materials[triangles[t].material_id - 1];
+            parser::Vec3f hit_point_temp = multiply_with_constant(view_ray.direction, intersection_t);
+            hit_point = add(view_ray.origin, hit_point_temp);
+        }
+    }
+    for (int s = 0; s < scene.spheres.size(); s++)
+    {
+        float intersection_t = intersect_sphere(vertices[scene.spheres[s].center_vertex_id - 1], scene.spheres[s].radius, view_ray);
+        if (intersection_t < min_t && intersection_t > 0)
+        {
+            min_t = intersection_t;
+            material = scene.materials[scene.spheres[s].material_id-1];
+            parser::Vec3f tmp_d = multiply_with_constant(view_ray.direction,intersection_t);
+            hit_point = add(view_ray.origin, tmp_d);
+            tmp_d = subtract(hit_point,scene.vertex_data[scene.spheres[s].center_vertex_id-1]);
+            normal.direction = normalize(tmp_d);
+            normal.origin = hit_point;
+            /*save object data here*/
+            /*TODO*/
+        }
+    }
+    HitRecord result;
+    result.material = material;
+    result.hit_point = hit_point;
+    result.normal = normal;
+    result.min_t = min_t;
+    return result;
+}
+
+parser::Vec3f computeColor(std::vector<parser::Triangle>& triangles, parser::Scene& scene, Ray& view_ray, std::vector<Ray>& normals, parser::Camera& cam, int current_depth,int max_depth);
+
+
+parser::Vec3f apply_shading(parser::Scene& scene,HitRecord& hit_record,Ray& view_ray, int current_depth, int max_depth, std::vector<Ray>& normals, parser::Camera& cam, std::vector<parser::Triangle>& triangles){
+    parser::Material& material = hit_record.material;
+    parser::Vec3f& hit_point = hit_record.hit_point;
+    Ray& normal = hit_record.normal;
+    parser::Vec3f ambient_shading_part = ambient_shading(scene.ambient_light, material);
+    parser::Vec3f diffuse_shading_part = diffuse_shading(scene.point_lights, normal, hit_point, material);
+    parser::Vec3f outgoingVec = view_ray.direction;
+    outgoingVec.x = -outgoingVec.x;
+    outgoingVec.y = -outgoingVec.y;
+    outgoingVec.z = -outgoingVec.z;
+    parser::Vec3f BlinnPhong_part = blinnphong_shading(scene.point_lights, normal, hit_point, material, outgoingVec);\
+    parser::Vec3f color1 = add(ambient_shading_part, diffuse_shading_part);
+    parser::Vec3f color = add(BlinnPhong_part, color1);
+    if(material.is_mirror){
+        Ray reflect_ray;
+
+        //May have to multiply view ray with -1
+        float minusone =-1;
+        parser::Vec3f wo = multiply_with_constant(view_ray.direction, minusone);
+
+        float tmp = dot(wo, normal.direction);
+        tmp *= 2;
+        parser::Vec3f tmp2 = multiply_with_constant(normal.direction,tmp);
+        parser::Vec3f tmp3 = add(tmp2,view_ray.direction);
+        reflect_ray.direction = normalize(tmp3);
+        reflect_ray.origin = hit_point;
+        reflect_ray.origin.y += 1e-6;
+        parser::Vec3f color2 = computeColor(triangles,scene,reflect_ray,normals,cam,current_depth+1,max_depth);
+        color2 = multiply(color2,material.mirror);
+        color = add(color,color2);
+    }
+    return color;
+    
+}
+
+
+
+
+parser::Vec3f computeColor(std::vector<parser::Triangle>& triangles, parser::Scene& scene, Ray& view_ray, std::vector<Ray>& normals, parser::Camera& cam, int current_depth,int max_depth){
+    if(current_depth>= max_depth){
+        parser::Vec3f tmp;
+        tmp.x = 0,tmp.y=0,tmp.z=0;
+        return tmp;
+    }
+    float min_t = __FLT_MAX__;
+    HitRecord hit_record = findHitRecord(triangles, scene, view_ray, normals);
+    parser::Vec3f& hit_point = hit_record.hit_point;
+    parser::Material& material = hit_record.material;
+    Ray& normal = hit_record.normal;
+    min_t = hit_record.min_t;
+    parser::Vec3f resultingColor;
+    
+    if (min_t == __FLT_MAX__)
+    {
+        resultingColor.x =  scene.background_color.x;
+        resultingColor.y =  scene.background_color.y;
+        resultingColor.z =  scene.background_color.z;
+    }
+    else
+    {
+        if (hit_point.x != 0)
+        {
+            resultingColor = apply_shading(scene,hit_record,view_ray,current_depth,max_depth, normals, cam, triangles);
+            resultingColor.x = resultingColor.x > 255 ? 255 : resultingColor.x;
+            resultingColor.y = resultingColor.y > 255 ? 255 : resultingColor.y;
+            resultingColor.z = resultingColor.z > 255 ? 255 : resultingColor.z;
+        }
+        else
+        {
+            resultingColor.x = 255;
+            resultingColor.y = 0;
+            resultingColor.z = 0;
+            
+        }
+    }
+    return resultingColor;
+}
+
+
+
+
+
 
 
 
@@ -212,90 +348,42 @@ int main(int argc, char *argv[])
         float t = cam.near_plane.y;
         unsigned char *image = new unsigned char[height * width * 3];
         int print_counter = 0;
-        parser::Vec3f m_2 = multipy_with_constant(cam.gaze, cam.near_distance);
+        parser::Vec3f m_2 = multiply_with_constant(cam.gaze, cam.near_distance);
         parser::Vec3f m = add(cam.position, m_2);
         parser::Vec3f u = cross_product(cam.gaze, cam.up);
-        parser::Vec3f q_2_1 = multipy_with_constant(u, l);
-        parser::Vec3f q_2_2 = multipy_with_constant(cam.up, t);
+        parser::Vec3f q_2_1 = multiply_with_constant(u, l);
+        parser::Vec3f q_2_2 = multiply_with_constant(cam.up, t);
         parser::Vec3f q_2 = add(q_2_1, q_2_2);
         parser::Vec3f q = add(m, q_2);
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
-                Ray normal;
-                parser::Material material;
-                parser::Vec3f hit_point = {0, 0, 0};
+                //Compute view ray
                 float s_u = (x + 0.5) * (r - l) / width;
                 float minus_s_v = -(y + 0.5) * (t - b) / height;
                 float min_t = __INT_MAX__;
-                parser::Vec3f s_1_1 = multipy_with_constant(u, s_u);
-                parser::Vec3f s_1_2 = multipy_with_constant(cam.up, minus_s_v);
+                parser::Vec3f s_1_1 = multiply_with_constant(u, s_u);
+                parser::Vec3f s_1_2 = multiply_with_constant(cam.up, minus_s_v);
                 parser::Vec3f s_1 = add(s_1_1, s_1_2);
                 parser::Vec3f s = add(q, s_1);
                 parser::Vec3f vr_1 = subtract(s, cam.position);
                 Ray view_ray = {cam.position, normalize(vr_1)};
+
+
                 if (print_counter++ == 500)
                 {
                     float percentage = (float)(y * width + x) / (height * width) * 100;
                     printf("Percentage finished: %.2f\n", percentage);
                     print_counter = 0;
                 }
-                for (int t = 0; t < triangles.size(); t++)
-                {
-                    float intersection_t = intersect_triangle(triangles[t].indices, view_ray, vertices);
-                    if (intersection_t < min_t && intersection_t > 0)
-                    {
-                        min_t = intersection_t;
-                        normal = normals[t];
-                        material = scene.materials[triangles[t].material_id - 1];
-                        parser::Vec3f hit_point_temp = multipy_with_constant(view_ray.direction, intersection_t);
-                        hit_point = add(cam.position, hit_point_temp);
-                    }
-                }
-                for (int s = 0; s < scene.spheres.size(); s++)
-                {
-                    float intersection_t = intersect_sphere(vertices[scene.spheres[s].center_vertex_id - 1], scene.spheres[s].radius, view_ray);
-                    if (intersection_t < min_t && intersection_t > 0)
-                    {
-                        min_t = intersection_t;
-                        /*save object data here*/
-                        /*TODO*/
-                    }
-                }
-                if (min_t == __INT_MAX__)
-                {
-                    image[3 * (y * width + x)] = scene.background_color.x;
-                    image[3 * (y * width + x) + 1] = scene.background_color.y;
-                    image[3 * (y * width + x) + 2] = scene.background_color.z;
-                }
-                else
-                {
-                    if (hit_point.x != 0)
-                    {
-                        parser::Vec3f ambient_shading_part = ambient_shading(scene.ambient_light, material);
-                        parser::Vec3f diffuse_shading_part = diffuse_shading(scene.point_lights, normal, hit_point, material);
-                        parser::Vec3f outgoingVec = view_ray.direction;
-                        outgoingVec.x = -outgoingVec.x;
-                        outgoingVec.y = -outgoingVec.y;
-                        outgoingVec.z = -outgoingVec.z;
-                        parser::Vec3f BlinnPhong_part = blinnphong_shading(scene.point_lights, normal, hit_point, material, outgoingVec);
-                        parser::Vec3f color1 = add(ambient_shading_part, diffuse_shading_part);
-                        parser::Vec3f color = add(BlinnPhong_part, color1);
-                        float red = color.x > 255 ? 255 : color.x;
-                        float green = color.y > 255 ? 255 : color.y;
-                        float blue = color.z > 255 ? 255 : color.z;
-                        image[3 * (y * width + x)] = (int)red;
-                        image[3 * (y * width + x) + 1] = (int)green;
-                        image[3 * (y * width + x) + 2] = (int)blue;
-                    }
-                    else
-                    {
-                        image[3 * (y * width + x)] = 255;
-                        image[3 * (y * width + x) + 1] = 0;
-                        image[3 * (y * width + x) + 2] = 0;
-                    }
-                }
+
+                //compute color
+                parser::Vec3f color = computeColor(triangles, scene, view_ray, normals, cam, 0,scene.max_recursion_depth);
+                image[3 * (y * width + x)] = color.x;
+                image[3 * (y * width + x) + 1] = color.y;
+                image[3 * (y * width + x) + 2] = color.z;
+                
             }
         }
         auto end = std::chrono::high_resolution_clock::now();
