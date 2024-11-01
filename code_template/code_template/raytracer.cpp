@@ -13,13 +13,13 @@ struct Ray
     parser::Vec3f direction;
 };
 
-struct HitRecord{
+struct HitRecord
+{
     parser::Vec3f hit_point;
     parser::Material material;
     Ray normal;
     float min_t;
 };
-
 
 parser::Vec3f cross_product(parser::Vec3f &a, parser::Vec3f &b)
 {
@@ -90,8 +90,8 @@ parser::Vec3f normalize(parser::Vec3f &a)
     return c;
 }
 
-
-bool isParallel(parser::Vec3f &ray1, parser::Vec3f &ray2){
+bool isParallel(parser::Vec3f &ray1, parser::Vec3f &ray2)
+{
     return ray1.x == ray2.x && ray1.y == ray2.y && ray1.z == ray2.z;
 }
 
@@ -134,17 +134,17 @@ float intersect_sphere(parser::Vec3f &center, float &radius, Ray &view_ray)
 
 parser::Vec3f diffuse_shading(parser::PointLight &point_light, Ray &normal, parser::Vec3f &point, parser::Material &material)
 {
-        /*normal bulma algoritmasını buraya taşımayı dene*/
-        parser::Vec3f light_position = point_light.position;
-        parser::Vec3f distance_vector = subtract(light_position, point);
-        parser::Vec3f normalized_distance_vector = normalize(distance_vector);
-        float distance_squared = pow(distance_vector.x, 2) + pow(distance_vector.y, 2) + pow(distance_vector.z, 2);
-        parser::Vec3f received_irradiance = divide(point_light.intensity, distance_squared);
-        float cos_theta = dot(normal.direction, normalized_distance_vector);
-        cos_theta = cos_theta > 0 ? cos_theta : 0;
-        parser::Vec3f result_1 = multiply(material.diffuse, received_irradiance);
-        parser::Vec3f result = multiply_with_constant(result_1, cos_theta);
-        return result;
+    /*normal bulma algoritmasını buraya taşımayı dene*/
+    parser::Vec3f light_position = point_light.position;
+    parser::Vec3f distance_vector = subtract(light_position, point);
+    parser::Vec3f normalized_distance_vector = normalize(distance_vector);
+    float distance_squared = pow(distance_vector.x, 2) + pow(distance_vector.y, 2) + pow(distance_vector.z, 2);
+    parser::Vec3f received_irradiance = divide(point_light.intensity, distance_squared);
+    float cos_theta = dot(normal.direction, normalized_distance_vector);
+    cos_theta = cos_theta > 0 ? cos_theta : 0;
+    parser::Vec3f result_1 = multiply(material.diffuse, received_irradiance);
+    parser::Vec3f result = multiply_with_constant(result_1, cos_theta);
+    return result;
 }
 
 parser::Vec3f ambient_shading(parser::Vec3f ambient_coefficient, parser::Material &material)
@@ -153,33 +153,34 @@ parser::Vec3f ambient_shading(parser::Vec3f ambient_coefficient, parser::Materia
     return ambient;
 }
 
-parser::Vec3f blinnphong_shading(parser::PointLight &point_light, Ray &normal, parser::Vec3f &point, parser::Material &material, parser::Vec3f &outgoingVec){
-    
-        parser::Vec3f light_position = point_light.position;
-        parser::Vec3f distance_vector = subtract(light_position, point);
-        parser::Vec3f normalized_distance_vector = normalize(distance_vector);
-        float cos_theta = dot(normal.direction, normalized_distance_vector);
-        cos_theta = cos_theta > 0 ? cos_theta : 0;
-        if(cos_theta ==0){
-            return {0,0,0};
-        }
-        
-        float distance_squared = pow(distance_vector.x, 2) + pow(distance_vector.y, 2) + pow(distance_vector.z, 2);
-        parser::Vec3f received_irradiance = divide(point_light.intensity, distance_squared);
-        parser::Vec3f halfVec = add(normalized_distance_vector,outgoingVec);
-        parser::Vec3f normalizedhalfVec = normalize(halfVec);
+parser::Vec3f blinnphong_shading(parser::PointLight &point_light, Ray &normal, parser::Vec3f &point, parser::Material &material, parser::Vec3f &outgoingVec)
+{
 
-        
-        
-        float cos_alpha = std::max(float(0),dot(normal.direction, normalizedhalfVec));
-        float cos_alpha_exponed = pow(cos_alpha,material.phong_exponent);
-        parser::Vec3f result_1 = multiply(material.specular, received_irradiance);
-        parser::Vec3f result = multiply_with_constant(result_1, cos_alpha_exponed);
-        return result;
+    parser::Vec3f light_position = point_light.position;
+    parser::Vec3f distance_vector = subtract(light_position, point);
+    parser::Vec3f normalized_distance_vector = normalize(distance_vector);
+    float cos_theta = dot(normal.direction, normalized_distance_vector);
+    cos_theta = cos_theta > 0 ? cos_theta : 0;
+    if (cos_theta == 0)
+    {
+        return {0, 0, 0};
+    }
+
+    float distance_squared = pow(distance_vector.x, 2) + pow(distance_vector.y, 2) + pow(distance_vector.z, 2);
+    parser::Vec3f received_irradiance = divide(point_light.intensity, distance_squared);
+    parser::Vec3f halfVec = add(normalized_distance_vector, outgoingVec);
+    parser::Vec3f normalizedhalfVec = normalize(halfVec);
+
+    float cos_alpha = std::max(float(0), dot(normal.direction, normalizedhalfVec));
+    float cos_alpha_exponed = pow(cos_alpha, material.phong_exponent);
+    parser::Vec3f result_1 = multiply(material.specular, received_irradiance);
+    parser::Vec3f result = multiply_with_constant(result_1, cos_alpha_exponed);
+    return result;
 }
 
-HitRecord findHitRecord(std::vector<parser::Triangle*>& triangles,std::vector<parser::Sphere*>& spheres, parser::Scene& scene, Ray& view_ray, std::vector<Ray*>& normals){
-    std::vector<parser::Vec3f>& vertices = scene.vertex_data;
+HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals)
+{
+    std::vector<parser::Vec3f> &vertices = scene.vertex_data;
     float min_t = __FLT_MAX__;
     parser::Vec3f hit_point = {0, 0, 0};
     Ray normal;
@@ -198,18 +199,17 @@ HitRecord findHitRecord(std::vector<parser::Triangle*>& triangles,std::vector<pa
     }
     for (int s = 0; s < spheres.size(); s++)
     {
-        parser::Sphere& sphere = *(spheres[s]);
+        parser::Sphere &sphere = *(spheres[s]);
         float intersection_t = intersect_sphere(vertices[sphere.center_vertex_id - 1], sphere.radius, view_ray);
         if (intersection_t < min_t && intersection_t > 0)
         {
             min_t = intersection_t;
-            material = scene.materials[sphere.material_id-1];
-            parser::Vec3f tmp_d = multiply_with_constant(view_ray.direction,intersection_t);
+            material = scene.materials[sphere.material_id - 1];
+            parser::Vec3f tmp_d = multiply_with_constant(view_ray.direction, intersection_t);
             hit_point = add(view_ray.origin, tmp_d);
-            tmp_d = subtract(hit_point,scene.vertex_data[sphere.center_vertex_id-1]);
+            tmp_d = subtract(hit_point, scene.vertex_data[sphere.center_vertex_id - 1]);
             normal.direction = normalize(tmp_d);
             normal.origin = hit_point;
-
         }
     }
     HitRecord result;
@@ -220,48 +220,53 @@ HitRecord findHitRecord(std::vector<parser::Triangle*>& triangles,std::vector<pa
     return result;
 }
 
-parser::Vec3f computeColor(std::vector<parser::Triangle*>& triangles,std::vector<parser::Sphere*>& spheres, parser::Scene& scene, Ray& view_ray, std::vector<Ray*>& normals, int current_depth,int max_depth);
+parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth);
 
-
-parser::Vec3f apply_shading(parser::Scene& scene,HitRecord& hit_record,Ray& view_ray, int current_depth, int max_depth, std::vector<Ray*>& normals, std::vector<parser::Triangle*>& triangles, std::vector<parser::Sphere*>& spheres){
-    parser::Material& material = hit_record.material;
-    parser::Vec3f& hit_point = hit_record.hit_point;
-    Ray& normal = hit_record.normal;
+parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &view_ray, int current_depth, int max_depth, std::vector<Ray *> &normals, std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres)
+{
+    parser::Material &material = hit_record.material;
+    parser::Vec3f &hit_point = hit_record.hit_point;
+    Ray &normal = hit_record.normal;
     parser::Vec3f color = ambient_shading(scene.ambient_light, material);
-    
-    
-    if(material.is_mirror){
+
+    if (material.is_mirror)
+    {
         Ray reflect_ray;
 
-        //May have to multiply view ray with -1
-        float minusone =-1;
+        // May have to multiply view ray with -1
+        float minusone = -1;
         parser::Vec3f wo = multiply_with_constant(view_ray.direction, minusone);
 
         float tmp = dot(wo, normal.direction);
         tmp *= 2;
-        parser::Vec3f tmp2 = multiply_with_constant(normal.direction,tmp);
-        parser::Vec3f tmp3 = add(tmp2,view_ray.direction);
-        reflect_ray.direction = normalize(tmp3);
+        parser::Vec3f tmp2 = multiply_with_constant(normal.direction, tmp);
+        parser::Vec3f tmp3 = add(tmp2, view_ray.direction);
+        reflect_ray.direction = tmp3;
         reflect_ray.origin = hit_point;
-        reflect_ray.origin.y += scene.shadow_ray_epsilon;
+        /*reflect_ray.origin.y += scene.shadow_ray_epsilon;*/
+        parser::Vec3f o1 = multiply_with_constant(normal.direction, scene.shadow_ray_epsilon);
+        reflect_ray.origin = add(reflect_ray.origin, o1);
+        /*shadow ray epsilon should be added towards normal direction*/
 
-
-        parser::Vec3f color2 = computeColor(triangles,spheres, scene,reflect_ray,normals,current_depth+1,max_depth);
-        color2 = multiply(color2,material.mirror);
-        color = add(color,color2);
+        parser::Vec3f color2 = computeColor(triangles, spheres, scene, reflect_ray, normals, current_depth + 1, max_depth);
+        color2 = multiply(color2, material.mirror);
+        color = add(color, color2);
     }
 
-    for(int l= 0; l< scene.point_lights.size();l++){
+    for (int l = 0; l < scene.point_lights.size(); l++)
+    {
         parser::Vec3f light_position = scene.point_lights[l].position;
         parser::Vec3f distance_vector = subtract(light_position, hit_point);
         parser::Vec3f normalized_distance_vector = normalize(distance_vector);
-        float t = distance_vector.x/normalized_distance_vector.x;
+        float t = distance_vector.x / normalized_distance_vector.x;
         Ray tmp_ray;
         tmp_ray.direction = normalized_distance_vector;
-        parser::Vec3f epsilon = multiply_with_constant(normalized_distance_vector,scene.shadow_ray_epsilon);
-        tmp_ray.origin = add(hit_point,epsilon);
-        HitRecord lightHitRecord = findHitRecord(triangles,spheres, scene,tmp_ray,normals);
-        if(lightHitRecord.min_t == __FLT_MAX__ || (lightHitRecord.min_t >= t && lightHitRecord.min_t>0))
+        /*parser::Vec3f epsilon = multiply_with_constant(normalized_distance_vector, scene.shadow_ray_epsilon);*/
+        /*burada distance vector değil normalle çarpılması lazım*/
+        parser::Vec3f epsilon = multiply_with_constant(normal.direction, scene.shadow_ray_epsilon);
+        tmp_ray.origin = add(hit_point, epsilon);
+        HitRecord lightHitRecord = findHitRecord(triangles, spheres, scene, tmp_ray, normals);
+        if (lightHitRecord.min_t == __FLT_MAX__ || (lightHitRecord.min_t >= t && lightHitRecord.min_t > 0))
         {
             parser::Vec3f diffuse_shading_part = diffuse_shading(scene.point_lights[l], normal, hit_point, material);
             parser::Vec3f outgoingVec = view_ray.direction;
@@ -269,64 +274,46 @@ parser::Vec3f apply_shading(parser::Scene& scene,HitRecord& hit_record,Ray& view
             outgoingVec.y = -outgoingVec.y;
             outgoingVec.z = -outgoingVec.z;
             parser::Vec3f BlinnPhong_part = blinnphong_shading(scene.point_lights[l], normal, hit_point, material, outgoingVec);
-            parser::Vec3f tmp= add(diffuse_shading_part,BlinnPhong_part);
-            color = add(color,tmp);            
+            parser::Vec3f tmp = add(diffuse_shading_part, BlinnPhong_part);
+            color = add(color, tmp);
         }
-
     }
 
-
     return color;
-    
 }
 
-
-
-
-parser::Vec3f computeColor(std::vector<parser::Triangle*>& triangles,std::vector<parser::Sphere*>& spheres, parser::Scene& scene, Ray& view_ray, std::vector<Ray*>& normals, int current_depth,int max_depth){
-    if(current_depth>= max_depth){
+parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth)
+{
+    if (current_depth >= max_depth)
+    {
         parser::Vec3f tmp;
-        tmp.x = 0,tmp.y=0,tmp.z=0;
+        tmp.x = 0, tmp.y = 0, tmp.z = 0;
         return tmp;
     }
     float min_t = __FLT_MAX__;
-    HitRecord hit_record = findHitRecord(triangles,spheres, scene, view_ray, normals);
-    parser::Vec3f& hit_point = hit_record.hit_point;
-    parser::Material& material = hit_record.material;
-    Ray& normal = hit_record.normal;
+    HitRecord hit_record = findHitRecord(triangles, spheres, scene, view_ray, normals);
+    parser::Vec3f &hit_point = hit_record.hit_point;
+    parser::Material &material = hit_record.material;
+    Ray &normal = hit_record.normal;
     min_t = hit_record.min_t;
     parser::Vec3f resultingColor;
-    
+
     if (min_t == __FLT_MAX__)
     {
-        resultingColor.x =  scene.background_color.x;
-        resultingColor.y =  scene.background_color.y;
-        resultingColor.z =  scene.background_color.z;
+        resultingColor.x = scene.background_color.x;
+        resultingColor.y = scene.background_color.y;
+        resultingColor.z = scene.background_color.z;
     }
     else
     {
-        if (hit_point.x != 0)
-        {
-            resultingColor = apply_shading(scene,hit_record,view_ray,current_depth,max_depth, normals, triangles, spheres);
-            resultingColor.x = resultingColor.x > 255 ? 255 : resultingColor.x;
-            resultingColor.y = resultingColor.y > 255 ? 255 : resultingColor.y;
-            resultingColor.z = resultingColor.z > 255 ? 255 : resultingColor.z;
-        }
-        else
-        {
-            resultingColor.x = 255;
-            resultingColor.y = 0;
-            resultingColor.z = 0;
-            
-        }
+
+        resultingColor = apply_shading(scene, hit_record, view_ray, current_depth, max_depth, normals, triangles, spheres);
+        resultingColor.x = resultingColor.x > 255 ? 255 : resultingColor.x;
+        resultingColor.y = resultingColor.y > 255 ? 255 : resultingColor.y;
+        resultingColor.z = resultingColor.z > 255 ? 255 : resultingColor.z;
     }
     return resultingColor;
 }
-
-
-
-
-
 
 int main(int argc, char *argv[])
 {
@@ -339,7 +326,7 @@ int main(int argc, char *argv[])
     std::vector<parser::Mesh> meshes = scene.meshes;
     std::vector<parser::Triangle> pre_triangles = scene.triangles;
     std::vector<parser::Material> materials = scene.materials;
-    std::vector<parser::Sphere*> spheres;
+    std::vector<parser::Sphere *> spheres;
     for (int m = 0; m < meshes.size(); m++)
     {
         for (int f = 0; f < meshes[m].faces.size(); f++)
@@ -359,11 +346,12 @@ int main(int argc, char *argv[])
         parser::Vec3f normalized_normal = normalize(normal);
         pre_normals[t] = Ray{vertices[pre_triangles[t].indices.v2_id - 1], normalized_normal};
     }
-    for(int s =0, size = scene.spheres.size();s<size;s++){
+    for (int s = 0, size = scene.spheres.size(); s < size; s++)
+    {
         spheres.push_back(&scene.spheres[s]);
     }
-    std::vector<Ray*> normals;
-    std::vector<parser::Triangle*> triangles;
+    std::vector<Ray *> normals;
+    std::vector<parser::Triangle *> triangles;
     for (int i = 0; i < scene.cameras.size(); i++)
     {
         parser::Camera cam = scene.cameras[i];
@@ -379,38 +367,37 @@ int main(int argc, char *argv[])
         float distance = cam.near_distance;
         parser::Vec3f u = cross_product(cam.gaze, cam.up);
         u = normalize(u);
-        parser::Vec3f m_distance = multiply_with_constant(cam.gaze, distance) ;
-        parser::Vec3f m = add(cam.position,m_distance);
-        parser::Vec3f tmp = multiply_with_constant(u,l);
-        parser::Vec3f tmp2 = multiply_with_constant(cam.up,t);
+        parser::Vec3f m_distance = multiply_with_constant(cam.gaze, distance);
+        parser::Vec3f m = add(cam.position, m_distance);
+        parser::Vec3f tmp = multiply_with_constant(u, l);
+        parser::Vec3f tmp2 = multiply_with_constant(cam.up, t);
         parser::Vec3f q = add(m, tmp);
         q = add(q, tmp2);
 
-        for(int i = 0, size=pre_triangles.size();i<size;i++ ){
-            if(dot(pre_normals[i].direction, cam.gaze)<=0){
+        for (int i = 0, size = pre_triangles.size(); i < size; i++)
+        {
+            if (dot(pre_normals[i].direction, cam.gaze) <= 0)
+            {
                 triangles.push_back(&pre_triangles[i]);
                 normals.push_back(&pre_normals[i]);
             }
         }
 
-
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
-                //Compute view ray
+                // Compute view ray
                 parser::Vec3f q_u = multiply_with_constant(u, (x + 0.5) * (r - l) / width);
-                parser::Vec3f q_v =multiply_with_constant(cam.up , (y + 0.5) * (t - b) / height);
+                parser::Vec3f q_v = multiply_with_constant(cam.up, (y + 0.5) * (t - b) / height);
                 parser::Vec3f s;
                 s = subtract(q_u, q_v);
-                s = add(q,s);
+                s = add(q, s);
                 parser::Vec3f d = subtract(s, cam.position);
 
-                
                 Ray view_ray;
                 view_ray.origin = cam.position;
                 view_ray.direction = normalize(d);
-
 
                 if (print_counter++ == 500)
                 {
@@ -419,12 +406,11 @@ int main(int argc, char *argv[])
                     print_counter = 0;
                 }
 
-                //compute color
-                parser::Vec3f color = computeColor(triangles,spheres, scene, view_ray, normals, 1 ,scene.max_recursion_depth);
+                // compute color
+                parser::Vec3f color = computeColor(triangles, spheres, scene, view_ray, normals, 0, scene.max_recursion_depth);
                 image[3 * (y * width + x)] = std::round(color.x);
                 image[3 * (y * width + x) + 1] = std::round(color.y);
                 image[3 * (y * width + x) + 2] = std::round(color.z);
-                
             }
         }
         auto end = std::chrono::high_resolution_clock::now();
@@ -433,6 +419,3 @@ int main(int argc, char *argv[])
         write_ppm(name.c_str(), image, width, height);
     }
 }
-
-/*monkey takes 67 seconds without shading*/
-/*car camera 1 takes 335 seconds without shading*/
