@@ -220,7 +220,7 @@ HitRecord findHitRecord(std::vector<parser::Triangle*>& triangles,std::vector<pa
     return result;
 }
 
-parser::Vec3f computeColor(std::vector<parser::Triangle>& triangles, parser::Scene& scene, Ray& view_ray, std::vector<Ray>& normals, int current_depth,int max_depth);
+parser::Vec3f computeColor(std::vector<parser::Triangle*>& triangles, parser::Scene& scene, Ray& view_ray, std::vector<Ray>& normals, int current_depth,int max_depth);
 
 
 parser::Vec3f apply_shading(parser::Scene& scene,HitRecord& hit_record,Ray& view_ray, int current_depth, int max_depth, std::vector<Ray*>& normals, std::vector<parser::Triangle*>& triangles, std::vector<parser::Sphere*>& spheres){
