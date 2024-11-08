@@ -604,7 +604,7 @@ parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &vi
 
 parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth,BVHTreeTri& bvhTree,BVHTreeSphere& bvhTreeSphere)
 {
-    if (current_depth >= max_depth)
+    if (current_depth > max_depth)
     {
         parser::Vec3f tmp;
         tmp.x = 0, tmp.y = 0, tmp.z = 0;
