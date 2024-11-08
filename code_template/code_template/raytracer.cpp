@@ -300,9 +300,11 @@ parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vect
 
     if (min_t == __FLT_MAX__)
     {
-        resultingColor.x = scene.background_color.x;
-        resultingColor.y = scene.background_color.y;
-        resultingColor.z = scene.background_color.z;
+        if(current_depth==0){
+            resultingColor.x = scene.background_color.x;
+            resultingColor.y = scene.background_color.y;
+            resultingColor.z = scene.background_color.z;
+        }
     }
     else
     {
@@ -352,6 +354,11 @@ int main(int argc, char *argv[])
     }
     std::vector<Ray *> normals;
     std::vector<parser::Triangle *> triangles;
+    for (int i = 0, size = pre_triangles.size(); i < size; i++)
+    {
+                triangles.push_back(&pre_triangles[i]);
+                normals.push_back(&pre_normals[i]);
+    }
     for (int i = 0; i < scene.cameras.size(); i++)
     {
         parser::Camera cam = scene.cameras[i];
@@ -374,14 +381,7 @@ int main(int argc, char *argv[])
         parser::Vec3f q = add(m, tmp);
         q = add(q, tmp2);
 
-        for (int i = 0, size = pre_triangles.size(); i < size; i++)
-        {
-            if (dot(pre_normals[i].direction, cam.gaze) <= 0)
-            {
-                triangles.push_back(&pre_triangles[i]);
-                normals.push_back(&pre_normals[i]);
-            }
-        }
+        
 
         for (int y = 0; y < height; ++y)
         {
