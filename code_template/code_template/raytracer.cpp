@@ -280,16 +280,17 @@ class BVHTreeTri{
         currentNode -> right = construct_helper(right_tris,next_ori);
         return currentNode;  
     }
-    void getTriangles(Ray& ray, std::vector<MyTriangle*>& triangleList,std::vector<Ray*>& normalList){
+    void getTriangles(Ray& ray, std::vector<parser::Triangle*>& triangleList,std::vector<Ray*>& normalList){
         getTrianglesHelper(ray,triangleList,normalList,this->root);
     }
 
-    void getTrianglesHelper(Ray& ray, std::vector<MyTriangle*>& triangleList,std::vector<Ray*>& normalList, BVHNodeTri* currentNode){
+    void getTrianglesHelper(Ray& ray, std::vector<parser::Triangle*>& triangleList,std::vector<Ray*>& normalList, BVHNodeTri* currentNode){
         bool hit = DoesHit(ray,currentNode->min,currentNode->max);
         if(hit){
             if(currentNode -> isLeaf){
                 for(std::vector<MyTriangle*>::iterator start = currentNode -> triangles.begin(), end = currentNode -> triangles.end();start!= end;start++){
-                    triangleList.push_back(*start);
+                    triangleList.push_back((*start)->tri);
+                    normalList.push_back((*start)->normal);
                 }
             }
             else{
@@ -365,16 +366,17 @@ HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, std::vector<
     parser::Vec3f hit_point = {0, 0, 0};
     Ray normal;
     parser::Material material;
-    //std::vector<parser::Triangle*> triangleList;
-    //bvhTree.getTriangles(view_ray,triangleList);
-    for (int t = 0; t < triangles.size(); t++)
+    std::vector<parser::Triangle*> triangleList;
+    std::vector<Ray*> normalList;
+    bvhTree.getTriangles(view_ray,triangleList,normalList);
+    for (int t = 0; t < triangleList.size(); t++)
     {
-        float intersection_t = intersect_triangle((*(triangles[t])).indices, view_ray, vertices);
+        float intersection_t = intersect_triangle((*(triangleList[t])).indices, view_ray, vertices);
         if (intersection_t < min_t && intersection_t > 0)
         {
             min_t = intersection_t;
-            normal = *(normals[t]);
-            material = scene.materials[(*(triangles[t])).material_id - 1];
+            normal = *(normalList[t]);
+            material = scene.materials[(*(triangleList[t])).material_id - 1];
             parser::Vec3f hit_point_temp = multiply_with_constant(view_ray.direction, intersection_t);
             hit_point = add(view_ray.origin, hit_point_temp);
         }
