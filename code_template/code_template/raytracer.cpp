@@ -3,8 +3,8 @@
 #include "ppm.h"
 #include <cmath>
 #include <chrono>
+#include "bits/stdc++.h"
 /*may need to add pthread*/
-
 typedef unsigned char RGB[3];
 
 struct Ray
@@ -132,6 +132,186 @@ float intersect_sphere(parser::Vec3f &center, float &radius, Ray &view_ray)
     return intersect_t;
 }
 
+
+
+
+
+
+struct MyTriangle{
+    parser::Vec3f center;
+    parser::Vec3f min;
+    parser::Vec3f max;
+    parser::Triangle* tri;
+    Ray* normal;
+};
+
+bool compx(MyTriangle* tri1,MyTriangle* tri2){
+    return (tri1)->center.x < (tri2)->center.x;
+}
+
+bool compy(MyTriangle* tri1,MyTriangle* tri2){
+    return (tri1)->center.y < (tri2)->center.y;
+}
+
+bool compz(MyTriangle* tri1,MyTriangle* tri2){
+    return (tri1)->center.z < (tri2)->center.z;
+}
+
+void getMin(parser::Vec3f& vec1,parser::Vec3f& result){
+    result.x = std::min(vec1.x,result.x);
+    result.y = std::min(vec1.y,result.y);
+    result.z = std::min(vec1.z,result.z);
+}
+void getMax(parser::Vec3f& vec1,parser::Vec3f& result){
+    result.x = std::max(vec1.x,result.x);
+    result.y = std::max(vec1.y,result.y);
+    result.z = std::max(vec1.z,result.z);
+}
+
+
+bool DoesHit(Ray& ray, parser::Vec3f& bmin, parser::Vec3f& bmax )
+{
+    float tx1 = (bmin.x - ray.origin.x) / ray.direction.x, tx2 = (bmax.x - ray.origin.x) / ray.direction.x;
+    float tmin = std::min( tx1, tx2 ), tmax = std::max( tx1, tx2 );
+    float ty1 = (bmin.y - ray.origin.y) / ray.direction.y, ty2 = (bmax.y - ray.origin.y) / ray.direction.y;
+    tmin = std::max( tmin, std::min( ty1, ty2 ) ), tmax = std::min( tmax, std::max( ty1, ty2 ) );
+    float tz1 = (bmin.z - ray.origin.z) / ray.direction.z, tz2 = (bmax.z - ray.origin.z) / ray.direction.z;
+    tmin = std::max( tmin, std::min( tz1, tz2 ) ), tmax = std::min( tmax, std::max( tz1, tz2 ) );
+    return tmax >= tmin && tmax > 0;
+}
+
+
+
+class BVHNodeTri{
+    public:
+        std::vector<MyTriangle*> triangles;
+        BVHNodeTri* left=nullptr;
+        BVHNodeTri* right=nullptr;
+        bool isLeaf=false;
+        parser::Vec3f min,max;
+};
+
+class BVHTreeTri{
+    public:
+        int max_leaf_count = 2;
+        BVHNodeTri* root=nullptr;
+        std::vector<MyTriangle*> bvh_triangles;
+    BVHTreeTri(int leaf_count,std::vector<MyTriangle>& triangles){
+        this -> max_leaf_count = leaf_count;
+        for(std::vector<MyTriangle>::iterator start = triangles.begin(),end = triangles.end();start != end;start++){
+            bvh_triangles.push_back(&*start);
+        }
+        std::vector<MyTriangle*> tri = bvh_triangles;
+        this -> root = construct_helper(tri,'y');
+    }
+    BVHNodeTri* construct_helper(std::vector<MyTriangle*>& triangles, char orientation){
+        parser::Vec3f min_vec = triangles[0]->min;
+        parser::Vec3f max_vec = triangles[0]->max;
+        std::vector<MyTriangle*>::iterator start = triangles.begin(),end= triangles.end();
+            start++;
+        while(start!=end){
+            getMin((*start)->min,min_vec);
+            getMax((*start)->max,max_vec);
+            start++;
+        }
+        BVHNodeTri* currentNode = new BVHNodeTri();
+        currentNode->min = min_vec;
+        currentNode->max = max_vec;
+        if(triangles.size()<=this->max_leaf_count){
+            currentNode->isLeaf = true;
+            currentNode-> triangles = triangles;
+            return currentNode;
+        }
+        std::vector<MyTriangle*> left_tris;
+        std::vector<MyTriangle*> right_tris;
+
+        if (orientation == 'x'){
+            std::sort(triangles.begin(),triangles.end(),compx);
+            int size = triangles.size();
+            int half_size = size / 2;
+            int i = 0;
+            start = triangles.begin();
+            for(;i < half_size;i++,start++){
+                left_tris.push_back((*start));
+            }
+            for(;i < size;i++,start++){
+                right_tris.push_back((*start));
+            }
+        }
+        else if(orientation == 'y') {
+            std::sort(triangles.begin(),triangles.end(),compy);
+            int size = triangles.size();
+            int half_size = size / 2;
+            int i = 0;
+            start = triangles.begin();
+            for(;i < half_size;i++,start++){
+                left_tris.push_back((*start));
+            }
+            for(;i < size;i++,start++){
+                right_tris.push_back((*start));
+            }
+        }
+        else{
+            std::sort(triangles.begin(),triangles.end(),compz);
+            int size = triangles.size();
+            int half_size = size / 2;
+            int i = 0;
+            start = triangles.begin();
+            for(;i < half_size;i++,start++){
+                left_tris.push_back((*start));
+            }
+            for(;i < size;i++,start++){
+                right_tris.push_back((*start));
+            }
+        }
+        char next_ori;
+        switch(orientation){
+            case 'x':
+                next_ori = 'y';
+                break;
+            case 'y':
+                next_ori = 'z';
+                break;
+            default:
+                next_ori = 'x';
+                break;
+        }
+        currentNode -> left = construct_helper(left_tris,next_ori);
+        currentNode -> right = construct_helper(right_tris,next_ori);
+        return currentNode;  
+    }
+    void getTriangles(Ray& ray, std::vector<MyTriangle*>& triangleList,std::vector<Ray*>& normalList){
+        getTrianglesHelper(ray,triangleList,normalList,this->root);
+    }
+
+    void getTrianglesHelper(Ray& ray, std::vector<MyTriangle*>& triangleList,std::vector<Ray*>& normalList, BVHNodeTri* currentNode){
+        bool hit = DoesHit(ray,currentNode->min,currentNode->max);
+        if(hit){
+            if(currentNode -> isLeaf){
+                for(std::vector<MyTriangle*>::iterator start = currentNode -> triangles.begin(), end = currentNode -> triangles.end();start!= end;start++){
+                    triangleList.push_back(*start);
+                }
+            }
+            else{
+                getTrianglesHelper(ray, triangleList,normalList,currentNode->left);
+                getTrianglesHelper(ray, triangleList,normalList,currentNode->right);
+            }
+        }
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 parser::Vec3f diffuse_shading(parser::PointLight &point_light, Ray &normal, parser::Vec3f &point, parser::Material &material)
 {
     /*normal bulma algoritmasını buraya taşımayı dene*/
@@ -178,13 +358,15 @@ parser::Vec3f blinnphong_shading(parser::PointLight &point_light, Ray &normal, p
     return result;
 }
 
-HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals)
+HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals,BVHTreeTri& bvhTree)
 {
     std::vector<parser::Vec3f> &vertices = scene.vertex_data;
     float min_t = __FLT_MAX__;
     parser::Vec3f hit_point = {0, 0, 0};
     Ray normal;
     parser::Material material;
+    //std::vector<parser::Triangle*> triangleList;
+    //bvhTree.getTriangles(view_ray,triangleList);
     for (int t = 0; t < triangles.size(); t++)
     {
         float intersection_t = intersect_triangle((*(triangles[t])).indices, view_ray, vertices);
@@ -220,9 +402,9 @@ HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, std::vector<
     return result;
 }
 
-parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth);
+parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth,BVHTreeTri& bvhTree);
 
-parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &view_ray, int current_depth, int max_depth, std::vector<Ray *> &normals, std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres)
+parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &view_ray, int current_depth, int max_depth, std::vector<Ray *> &normals, std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres,BVHTreeTri& bvhTree)
 {
     parser::Material &material = hit_record.material;
     parser::Vec3f &hit_point = hit_record.hit_point;
@@ -248,7 +430,7 @@ parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &vi
         reflect_ray.origin = add(reflect_ray.origin, o1);
         /*shadow ray epsilon should be added towards normal direction*/
 
-        parser::Vec3f color2 = computeColor(triangles, spheres, scene, reflect_ray, normals, current_depth + 1, max_depth);
+        parser::Vec3f color2 = computeColor(triangles, spheres, scene, reflect_ray, normals, current_depth + 1, max_depth,bvhTree);
         color2 = multiply(color2, material.mirror);
         color = add(color, color2);
     }
@@ -265,7 +447,7 @@ parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &vi
         /*burada distance vector değil normalle çarpılması lazım*/
         parser::Vec3f epsilon = multiply_with_constant(normal.direction, scene.shadow_ray_epsilon);
         tmp_ray.origin = add(hit_point, epsilon);
-        HitRecord lightHitRecord = findHitRecord(triangles, spheres, scene, tmp_ray, normals);
+        HitRecord lightHitRecord = findHitRecord(triangles, spheres, scene, tmp_ray, normals,bvhTree);
         if (lightHitRecord.min_t == __FLT_MAX__ || (lightHitRecord.min_t >= t && lightHitRecord.min_t > 0))
         {
             parser::Vec3f diffuse_shading_part = diffuse_shading(scene.point_lights[l], normal, hit_point, material);
@@ -282,7 +464,7 @@ parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &vi
     return color;
 }
 
-parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth)
+parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vector<parser::Sphere *> &spheres, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth,BVHTreeTri& bvhTree)
 {
     if (current_depth >= max_depth)
     {
@@ -291,7 +473,7 @@ parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vect
         return tmp;
     }
     float min_t = __FLT_MAX__;
-    HitRecord hit_record = findHitRecord(triangles, spheres, scene, view_ray, normals);
+    HitRecord hit_record = findHitRecord(triangles, spheres, scene, view_ray, normals,bvhTree);
     parser::Vec3f &hit_point = hit_record.hit_point;
     parser::Material &material = hit_record.material;
     Ray &normal = hit_record.normal;
@@ -300,14 +482,16 @@ parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, std::vect
 
     if (min_t == __FLT_MAX__)
     {
-        resultingColor.x = scene.background_color.x;
-        resultingColor.y = scene.background_color.y;
-        resultingColor.z = scene.background_color.z;
+        if(current_depth==0){
+            resultingColor.x = scene.background_color.x;
+            resultingColor.y = scene.background_color.y;
+            resultingColor.z = scene.background_color.z;
+        }
     }
     else
     {
 
-        resultingColor = apply_shading(scene, hit_record, view_ray, current_depth, max_depth, normals, triangles, spheres);
+        resultingColor = apply_shading(scene, hit_record, view_ray, current_depth, max_depth, normals, triangles, spheres,bvhTree);
         resultingColor.x = resultingColor.x > 255 ? 255 : resultingColor.x;
         resultingColor.y = resultingColor.y > 255 ? 255 : resultingColor.y;
         resultingColor.z = resultingColor.z > 255 ? 255 : resultingColor.z;
@@ -352,6 +536,32 @@ int main(int argc, char *argv[])
     }
     std::vector<Ray *> normals;
     std::vector<parser::Triangle *> triangles;
+    std::vector<MyTriangle> bvh_triangles;
+    std::vector<Ray>::iterator normal_start = pre_normals.begin();
+    for(std::vector<parser::Triangle>::iterator start = pre_triangles.begin(), end = pre_triangles.end(); start != end; start++, normal_start++){
+        parser::Triangle& tri = *start;
+        parser::Vec3f& vec0=vertices[tri.indices.v0_id-1],vec1=vertices[tri.indices.v1_id-1],vec2=vertices[tri.indices.v2_id-1];
+        parser::Vec3f center = add(vec0,vec1);
+        center = add (vec2,center);
+        center = divide(center,3);
+        MyTriangle tmp;
+        tmp.center = center;
+        parser::Vec3f min  = vec0;
+        getMin(vec1,min);
+        getMin(vec2,min);
+        parser::Vec3f max  = vec0;
+        getMax(vec1,max);
+        getMax(vec2,max);
+        tmp.max = max;
+        tmp.min = min;
+        tmp.tri = &(*start);
+        tmp.normal = &(*normal_start);
+        bvh_triangles.push_back(tmp);
+
+    }
+
+    BVHTreeTri bvhTree(2,bvh_triangles);
+
     for (int i = 0; i < scene.cameras.size(); i++)
     {
         parser::Camera cam = scene.cameras[i];
@@ -373,15 +583,6 @@ int main(int argc, char *argv[])
         parser::Vec3f tmp2 = multiply_with_constant(cam.up, t);
         parser::Vec3f q = add(m, tmp);
         q = add(q, tmp2);
-
-        for (int i = 0, size = pre_triangles.size(); i < size; i++)
-        {
-            if (dot(pre_normals[i].direction, cam.gaze) <= 0)
-            {
-                triangles.push_back(&pre_triangles[i]);
-                normals.push_back(&pre_normals[i]);
-            }
-        }
 
         for (int y = 0; y < height; ++y)
         {
@@ -405,9 +606,8 @@ int main(int argc, char *argv[])
                     printf("Percentage finished: %.2f\n", percentage);
                     print_counter = 0;
                 }
-
                 // compute color
-                parser::Vec3f color = computeColor(triangles, spheres, scene, view_ray, normals, 0, scene.max_recursion_depth);
+                parser::Vec3f color = computeColor(triangles, spheres, scene, view_ray, normals, 0, scene.max_recursion_depth,bvhTree);
                 image[3 * (y * width + x)] = std::round(color.x);
                 image[3 * (y * width + x) + 1] = std::round(color.y);
                 image[3 * (y * width + x) + 2] = std::round(color.z);
