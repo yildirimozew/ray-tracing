@@ -2,7 +2,6 @@
 #include "parser.h"
 #include "ppm.h"
 #include <cmath>
-#include <chrono>
 #include "bits/stdc++.h"
 /*may need to add pthread*/
 typedef unsigned char RGB[3];
@@ -132,320 +131,361 @@ float intersect_sphere(parser::Vec3f &center, float &radius, Ray &view_ray)
     return intersect_t;
 }
 
-
-
-
-struct MySphere{
-    parser::Sphere* sphere;
-    parser::Vec3f min,max,center;
+struct MySphere
+{
+    parser::Sphere *sphere;
+    parser::Vec3f min, max, center;
 };
 
-
-
-struct MyTriangle{
+struct MyTriangle
+{
     parser::Vec3f center;
     parser::Vec3f min;
     parser::Vec3f max;
-    parser::Triangle* tri;
-    Ray* normal;
+    parser::Triangle *tri;
+    Ray *normal;
 };
 
-bool compx(MyTriangle* tri1,MyTriangle* tri2){
+bool compx(MyTriangle *tri1, MyTriangle *tri2)
+{
     return (tri1)->center.x < (tri2)->center.x;
 }
-bool compsx(MySphere* tri1,MySphere* tri2){
+bool compsx(MySphere *tri1, MySphere *tri2)
+{
     return (tri1)->center.x < (tri2)->center.x;
 }
-bool compy(MyTriangle* tri1,MyTriangle* tri2){
+bool compy(MyTriangle *tri1, MyTriangle *tri2)
+{
     return (tri1)->center.y < (tri2)->center.y;
 }
-bool compsy(MySphere* tri1,MySphere* tri2){
+bool compsy(MySphere *tri1, MySphere *tri2)
+{
     return (tri1)->center.y < (tri2)->center.y;
 }
-bool compz(MyTriangle* tri1,MyTriangle* tri2){
+bool compz(MyTriangle *tri1, MyTriangle *tri2)
+{
     return (tri1)->center.z < (tri2)->center.z;
 }
-bool compsz(MySphere* tri1,MySphere* tri2){
+bool compsz(MySphere *tri1, MySphere *tri2)
+{
     return (tri1)->center.z < (tri2)->center.z;
 }
-void getMin(parser::Vec3f& vec1,parser::Vec3f& result){
-    result.x = std::min(vec1.x,result.x);
-    result.y = std::min(vec1.y,result.y);
-    result.z = std::min(vec1.z,result.z);
+void getMin(parser::Vec3f &vec1, parser::Vec3f &result)
+{
+    result.x = std::min(vec1.x, result.x);
+    result.y = std::min(vec1.y, result.y);
+    result.z = std::min(vec1.z, result.z);
 }
-void getMax(parser::Vec3f& vec1,parser::Vec3f& result){
-    result.x = std::max(vec1.x,result.x);
-    result.y = std::max(vec1.y,result.y);
-    result.z = std::max(vec1.z,result.z);
+void getMax(parser::Vec3f &vec1, parser::Vec3f &result)
+{
+    result.x = std::max(vec1.x, result.x);
+    result.y = std::max(vec1.y, result.y);
+    result.z = std::max(vec1.z, result.z);
 }
 
-
-bool DoesHit(Ray& ray, parser::Vec3f& bmin, parser::Vec3f& bmax )
+bool DoesHit(Ray &ray, parser::Vec3f &bmin, parser::Vec3f &bmax)
 {
     float tx1 = (bmin.x - ray.origin.x) / ray.direction.x, tx2 = (bmax.x - ray.origin.x) / ray.direction.x;
-    float tmin = std::min( tx1, tx2 ), tmax = std::max( tx1, tx2 );
+    float tmin = std::min(tx1, tx2), tmax = std::max(tx1, tx2);
     float ty1 = (bmin.y - ray.origin.y) / ray.direction.y, ty2 = (bmax.y - ray.origin.y) / ray.direction.y;
-    tmin = std::max( tmin, std::min( ty1, ty2 ) ), tmax = std::min( tmax, std::max( ty1, ty2 ) );
+    tmin = std::max(tmin, std::min(ty1, ty2)), tmax = std::min(tmax, std::max(ty1, ty2));
     float tz1 = (bmin.z - ray.origin.z) / ray.direction.z, tz2 = (bmax.z - ray.origin.z) / ray.direction.z;
-    tmin = std::max( tmin, std::min( tz1, tz2 ) ), tmax = std::min( tmax, std::max( tz1, tz2 ) );
+    tmin = std::max(tmin, std::min(tz1, tz2)), tmax = std::min(tmax, std::max(tz1, tz2));
     return tmax >= tmin && tmax > 0;
 }
 
-struct BVHNodeSphere{
-    std::vector<parser::Sphere*> spheres;
-    BVHNodeSphere* left=nullptr;
-    BVHNodeSphere* right=nullptr;
-    bool isLeaf=false;
-    parser::Vec3f min,max;
+struct BVHNodeSphere
+{
+    std::vector<parser::Sphere *> spheres;
+    BVHNodeSphere *left = nullptr;
+    BVHNodeSphere *right = nullptr;
+    bool isLeaf = false;
+    parser::Vec3f min, max;
 };
 
-struct BVHNodeTri{
-    public:
-        std::vector<MyTriangle*> triangles;
-        BVHNodeTri* left=nullptr;
-        BVHNodeTri* right=nullptr;
-        bool isLeaf=false;
-        parser::Vec3f min,max;
+struct BVHNodeTri
+{
+public:
+    std::vector<MyTriangle *> triangles;
+    BVHNodeTri *left = nullptr;
+    BVHNodeTri *right = nullptr;
+    bool isLeaf = false;
+    parser::Vec3f min, max;
 };
 
-class BVHTreeTri{
-    public:
-        int max_leaf_count = 2;
-        BVHNodeTri* root=nullptr;
-        std::vector<MyTriangle*> bvh_triangles;
-    BVHTreeTri(int leaf_count,std::vector<MyTriangle>& triangles){
-        this -> max_leaf_count = leaf_count;
-        for(std::vector<MyTriangle>::iterator start = triangles.begin(),end = triangles.end();start != end;start++){
+class BVHTreeTri
+{
+public:
+    int max_leaf_count = 2;
+    BVHNodeTri *root = nullptr;
+    std::vector<MyTriangle *> bvh_triangles;
+    BVHTreeTri(int leaf_count, std::vector<MyTriangle> &triangles)
+    {
+        this->max_leaf_count = leaf_count;
+        for (std::vector<MyTriangle>::iterator start = triangles.begin(), end = triangles.end(); start != end; start++)
+        {
             bvh_triangles.push_back(&*start);
         }
-        std::vector<MyTriangle*> tri = bvh_triangles;
-        if(tri.size()>0)
-            this -> root = construct_helper(tri,'y');
+        std::vector<MyTriangle *> tri = bvh_triangles;
+        if (tri.size() > 0)
+            this->root = construct_helper(tri, 'y');
         else
-            this -> root = nullptr;
+            this->root = nullptr;
     }
-    BVHNodeTri* construct_helper(std::vector<MyTriangle*>& triangles, char orientation){
+    BVHNodeTri *construct_helper(std::vector<MyTriangle *> &triangles, char orientation)
+    {
         parser::Vec3f min_vec = triangles[0]->min;
         parser::Vec3f max_vec = triangles[0]->max;
-        std::vector<MyTriangle*>::iterator start = triangles.begin(),end= triangles.end();
-            start++;
-        while(start!=end){
-            getMin((*start)->min,min_vec);
-            getMax((*start)->max,max_vec);
+        std::vector<MyTriangle *>::iterator start = triangles.begin(), end = triangles.end();
+        start++;
+        while (start != end)
+        {
+            getMin((*start)->min, min_vec);
+            getMax((*start)->max, max_vec);
             start++;
         }
-        BVHNodeTri* currentNode = new BVHNodeTri();
+        BVHNodeTri *currentNode = new BVHNodeTri();
         currentNode->min = min_vec;
         currentNode->max = max_vec;
-        if(triangles.size()<=this->max_leaf_count){
+        if (triangles.size() <= this->max_leaf_count)
+        {
             currentNode->isLeaf = true;
-            currentNode-> triangles = triangles;
+            currentNode->triangles = triangles;
             return currentNode;
         }
-        std::vector<MyTriangle*> left_tris;
-        std::vector<MyTriangle*> right_tris;
+        std::vector<MyTriangle *> left_tris;
+        std::vector<MyTriangle *> right_tris;
 
-        if (orientation == 'x'){
-            std::sort(triangles.begin(),triangles.end(),compx);
+        if (orientation == 'x')
+        {
+            std::sort(triangles.begin(), triangles.end(), compx);
             int size = triangles.size();
             int half_size = size / 2;
             int i = 0;
             start = triangles.begin();
-            for(;i < half_size;i++,start++){
+            for (; i < half_size; i++, start++)
+            {
                 left_tris.push_back((*start));
             }
-            for(;i < size;i++,start++){
+            for (; i < size; i++, start++)
+            {
                 right_tris.push_back((*start));
             }
         }
-        else if(orientation == 'y') {
-            std::sort(triangles.begin(),triangles.end(),compy);
+        else if (orientation == 'y')
+        {
+            std::sort(triangles.begin(), triangles.end(), compy);
             int size = triangles.size();
             int half_size = size / 2;
             int i = 0;
             start = triangles.begin();
-            for(;i < half_size;i++,start++){
+            for (; i < half_size; i++, start++)
+            {
                 left_tris.push_back((*start));
             }
-            for(;i < size;i++,start++){
+            for (; i < size; i++, start++)
+            {
                 right_tris.push_back((*start));
             }
         }
-        else{
-            std::sort(triangles.begin(),triangles.end(),compz);
+        else
+        {
+            std::sort(triangles.begin(), triangles.end(), compz);
             int size = triangles.size();
             int half_size = size / 2;
             int i = 0;
             start = triangles.begin();
-            for(;i < half_size;i++,start++){
+            for (; i < half_size; i++, start++)
+            {
                 left_tris.push_back((*start));
             }
-            for(;i < size;i++,start++){
+            for (; i < size; i++, start++)
+            {
                 right_tris.push_back((*start));
             }
         }
         char next_ori;
-        switch(orientation){
-            case 'x':
-                next_ori = 'y';
-                break;
-            case 'y':
-                next_ori = 'z';
-                break;
-            default:
-                next_ori = 'x';
-                break;
+        switch (orientation)
+        {
+        case 'x':
+            next_ori = 'y';
+            break;
+        case 'y':
+            next_ori = 'z';
+            break;
+        default:
+            next_ori = 'x';
+            break;
         }
-        currentNode -> left = construct_helper(left_tris,next_ori);
-        currentNode -> right = construct_helper(right_tris,next_ori);
-        return currentNode;  
+        currentNode->left = construct_helper(left_tris, next_ori);
+        currentNode->right = construct_helper(right_tris, next_ori);
+        return currentNode;
     }
-    void getTriangles(Ray& ray, std::vector<parser::Triangle*>& triangleList,std::vector<Ray*>& normalList){
-        if(this -> root != nullptr)
-            getTrianglesHelper(ray,triangleList,normalList,this->root);
+    void getTriangles(Ray &ray, std::vector<parser::Triangle *> &triangleList, std::vector<Ray *> &normalList)
+    {
+        if (this->root != nullptr)
+            getTrianglesHelper(ray, triangleList, normalList, this->root);
     }
 
-    void getTrianglesHelper(Ray& ray, std::vector<parser::Triangle*>& triangleList,std::vector<Ray*>& normalList, BVHNodeTri* currentNode){
-        bool hit = DoesHit(ray,currentNode->min,currentNode->max);
-        if(hit){
-            if(currentNode -> isLeaf){
-                for(std::vector<MyTriangle*>::iterator start = currentNode -> triangles.begin(), end = currentNode -> triangles.end();start!= end;start++){
+    void getTrianglesHelper(Ray &ray, std::vector<parser::Triangle *> &triangleList, std::vector<Ray *> &normalList, BVHNodeTri *currentNode)
+    {
+        bool hit = DoesHit(ray, currentNode->min, currentNode->max);
+        if (hit)
+        {
+            if (currentNode->isLeaf)
+            {
+                for (std::vector<MyTriangle *>::iterator start = currentNode->triangles.begin(), end = currentNode->triangles.end(); start != end; start++)
+                {
                     triangleList.push_back((*start)->tri);
                     normalList.push_back((*start)->normal);
                 }
             }
-            else{
-                getTrianglesHelper(ray, triangleList,normalList,currentNode->left);
-                getTrianglesHelper(ray, triangleList,normalList,currentNode->right);
+            else
+            {
+                getTrianglesHelper(ray, triangleList, normalList, currentNode->left);
+                getTrianglesHelper(ray, triangleList, normalList, currentNode->right);
             }
         }
     }
 };
 
-
-
-class BVHTreeSphere{
-    public:
-        int max_leaf_count = 2;
-        BVHNodeSphere* root=nullptr;
-        std::vector<MySphere*> bvh_spheres;
-    BVHTreeSphere(int leaf_count,std::vector<MySphere>& spheres){
-        this -> max_leaf_count = leaf_count;
-        for(std::vector<MySphere>::iterator start = spheres.begin(),end = spheres.end();start != end;start++){
+class BVHTreeSphere
+{
+public:
+    int max_leaf_count = 2;
+    BVHNodeSphere *root = nullptr;
+    std::vector<MySphere *> bvh_spheres;
+    BVHTreeSphere(int leaf_count, std::vector<MySphere> &spheres)
+    {
+        this->max_leaf_count = leaf_count;
+        for (std::vector<MySphere>::iterator start = spheres.begin(), end = spheres.end(); start != end; start++)
+        {
             bvh_spheres.push_back(&*start);
         }
-        std::vector<MySphere*> sphs = bvh_spheres;
-        if(sphs.size()>0)
-            this -> root = construct_helper(sphs,'y');
+        std::vector<MySphere *> sphs = bvh_spheres;
+        if (sphs.size() > 0)
+            this->root = construct_helper(sphs, 'y');
         else
-            this -> root = nullptr;
+            this->root = nullptr;
     }
-    BVHNodeSphere* construct_helper(std::vector<MySphere*>& spheres, char orientation){
+    BVHNodeSphere *construct_helper(std::vector<MySphere *> &spheres, char orientation)
+    {
         parser::Vec3f min_vec = spheres[0]->min;
         parser::Vec3f max_vec = spheres[0]->max;
-        std::vector<MySphere*>::iterator start = spheres.begin(),end= spheres.end();
-            start++;
-        while(start!=end){
-            getMin((*start)->min,min_vec);
-            getMax((*start)->max,max_vec);
+        std::vector<MySphere *>::iterator start = spheres.begin(), end = spheres.end();
+        start++;
+        while (start != end)
+        {
+            getMin((*start)->min, min_vec);
+            getMax((*start)->max, max_vec);
             start++;
         }
-        BVHNodeSphere* currentNode = new BVHNodeSphere();
+        BVHNodeSphere *currentNode = new BVHNodeSphere();
         currentNode->min = min_vec;
         currentNode->max = max_vec;
-        if(spheres.size()<=this->max_leaf_count){
+        if (spheres.size() <= this->max_leaf_count)
+        {
             currentNode->isLeaf = true;
-            for(std::vector<MySphere*>::iterator start = spheres.begin(), end=spheres.end();start!= end; start++){
+            for (std::vector<MySphere *>::iterator start = spheres.begin(), end = spheres.end(); start != end; start++)
+            {
                 currentNode->spheres.push_back((*start)->sphere);
-            }; 
+            };
             return currentNode;
         }
-        std::vector<MySphere*> left_sphs;
-        std::vector<MySphere*> right_sphs;
+        std::vector<MySphere *> left_sphs;
+        std::vector<MySphere *> right_sphs;
 
-        if (orientation == 'x'){
-            std::sort(spheres.begin(),spheres.end(),compsx);
+        if (orientation == 'x')
+        {
+            std::sort(spheres.begin(), spheres.end(), compsx);
             int size = spheres.size();
             int half_size = size / 2;
             int i = 0;
             start = spheres.begin();
-            for(;i < half_size;i++,start++){
+            for (; i < half_size; i++, start++)
+            {
                 left_sphs.push_back((*start));
             }
-            for(;i < size;i++,start++){
+            for (; i < size; i++, start++)
+            {
                 right_sphs.push_back((*start));
             }
         }
-        else if(orientation == 'y') {
-            std::sort(spheres.begin(),spheres.end(),compsy);
+        else if (orientation == 'y')
+        {
+            std::sort(spheres.begin(), spheres.end(), compsy);
             int size = spheres.size();
             int half_size = size / 2;
             int i = 0;
             start = spheres.begin();
-            for(;i < half_size;i++,start++){
+            for (; i < half_size; i++, start++)
+            {
                 left_sphs.push_back((*start));
             }
-            for(;i < size;i++,start++){
+            for (; i < size; i++, start++)
+            {
                 right_sphs.push_back((*start));
             }
         }
-        else{
-            std::sort(spheres.begin(),spheres.end(),compsz);
+        else
+        {
+            std::sort(spheres.begin(), spheres.end(), compsz);
             int size = spheres.size();
             int half_size = size / 2;
             int i = 0;
             start = spheres.begin();
-            for(;i < half_size;i++,start++){
+            for (; i < half_size; i++, start++)
+            {
                 left_sphs.push_back((*start));
             }
-            for(;i < size;i++,start++){
+            for (; i < size; i++, start++)
+            {
                 right_sphs.push_back((*start));
             }
         }
         char next_ori;
-        switch(orientation){
-            case 'x':
-                next_ori = 'y';
-                break;
-            case 'y':
-                next_ori = 'z';
-                break;
-            default:
-                next_ori = 'x';
-                break;
+        switch (orientation)
+        {
+        case 'x':
+            next_ori = 'y';
+            break;
+        case 'y':
+            next_ori = 'z';
+            break;
+        default:
+            next_ori = 'x';
+            break;
         }
-        currentNode -> left = construct_helper(left_sphs,next_ori);
-        currentNode -> right = construct_helper(right_sphs,next_ori);
-        return currentNode;  
+        currentNode->left = construct_helper(left_sphs, next_ori);
+        currentNode->right = construct_helper(right_sphs, next_ori);
+        return currentNode;
     }
-    void getSpheres(Ray& ray, std::vector<parser::Sphere*>& sphereList){
-        if(this -> root != nullptr)
-            getSpheresHelper(ray,sphereList,this->root);
+    void getSpheres(Ray &ray, std::vector<parser::Sphere *> &sphereList)
+    {
+        if (this->root != nullptr)
+            getSpheresHelper(ray, sphereList, this->root);
     }
 
-    void getSpheresHelper(Ray& ray, std::vector<parser::Sphere*>& sphereList, BVHNodeSphere* currentNode){
-        bool hit = DoesHit(ray,currentNode->min,currentNode->max);
-        if(hit){
-            if(currentNode -> isLeaf){
-                for(std::vector<parser::Sphere*>::iterator start = currentNode->spheres.begin(), end=currentNode->spheres.end();start!= end; start++){
-                sphereList.push_back((*start));
-            }; 
+    void getSpheresHelper(Ray &ray, std::vector<parser::Sphere *> &sphereList, BVHNodeSphere *currentNode)
+    {
+        bool hit = DoesHit(ray, currentNode->min, currentNode->max);
+        if (hit)
+        {
+            if (currentNode->isLeaf)
+            {
+                for (std::vector<parser::Sphere *>::iterator start = currentNode->spheres.begin(), end = currentNode->spheres.end(); start != end; start++)
+                {
+                    sphereList.push_back((*start));
+                };
             }
-            else{
-                getSpheresHelper(ray, sphereList,currentNode->left);
-                getSpheresHelper(ray, sphereList,currentNode->right);
+            else
+            {
+                getSpheresHelper(ray, sphereList, currentNode->left);
+                getSpheresHelper(ray, sphereList, currentNode->right);
             }
         }
     }
 };
-
-
-
-
-
-
-
-
 
 parser::Vec3f diffuse_shading(parser::PointLight &point_light, Ray &normal, parser::Vec3f &point, parser::Material &material)
 {
@@ -493,21 +533,22 @@ parser::Vec3f blinnphong_shading(parser::PointLight &point_light, Ray &normal, p
     return result;
 }
 
-HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals,BVHTreeTri& bvhTree,BVHTreeSphere& bvhTreeSphere)
+HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, BVHTreeTri &bvhTree, BVHTreeSphere &bvhTreeSphere)
 {
     std::vector<parser::Vec3f> &vertices = scene.vertex_data;
     float min_t = __FLT_MAX__;
     parser::Vec3f hit_point = {0, 0, 0};
     Ray normal;
     parser::Material material;
-    std::vector<parser::Triangle*> triangleList;
-    std::vector<Ray*> normalList;
-    std::vector<parser::Sphere*> sphereList;
-    bvhTreeSphere.getSpheres(view_ray,sphereList);
-    bvhTree.getTriangles(view_ray,triangleList,normalList);
+    std::vector<parser::Triangle *> triangleList;
+    std::vector<Ray *> normalList;
+    std::vector<parser::Sphere *> sphereList;
+    bvhTreeSphere.getSpheres(view_ray, sphereList);
+    bvhTree.getTriangles(view_ray, triangleList, normalList);
     for (int t = 0; t < triangleList.size(); t++)
     {
-        if(dot(normalList[t]->direction, view_ray.direction)>=0) continue;
+        if (dot(normalList[t]->direction, view_ray.direction) >= 0)
+            continue;
         float intersection_t = intersect_triangle((*(triangleList[t])).indices, view_ray, vertices);
         if (intersection_t < min_t && intersection_t > 0)
         {
@@ -541,9 +582,9 @@ HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, parser::Scen
     return result;
 }
 
-parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth,BVHTreeTri& bvhTree,BVHTreeSphere& bvhTreeSphere);
+parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth, BVHTreeTri &bvhTree, BVHTreeSphere &bvhTreeSphere);
 
-parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &view_ray, int current_depth, int max_depth, std::vector<Ray *> &normals, std::vector<parser::Triangle *> &triangles,BVHTreeTri& bvhTree,BVHTreeSphere& bvhTreeSphere)
+parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &view_ray, int current_depth, int max_depth, std::vector<Ray *> &normals, std::vector<parser::Triangle *> &triangles, BVHTreeTri &bvhTree, BVHTreeSphere &bvhTreeSphere)
 {
     parser::Material &material = hit_record.material;
     parser::Vec3f &hit_point = hit_record.hit_point;
@@ -569,7 +610,7 @@ parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &vi
         reflect_ray.origin = add(reflect_ray.origin, o1);
         /*shadow ray epsilon should be added towards normal direction*/
 
-        parser::Vec3f color2 = computeColor(triangles, scene, reflect_ray, normals, current_depth + 1, max_depth,bvhTree,bvhTreeSphere);
+        parser::Vec3f color2 = computeColor(triangles, scene, reflect_ray, normals, current_depth + 1, max_depth, bvhTree, bvhTreeSphere);
         color2 = multiply(color2, material.mirror);
         color = add(color, color2);
     }
@@ -586,7 +627,7 @@ parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &vi
         /*burada distance vector değil normalle çarpılması lazım*/
         parser::Vec3f epsilon = multiply_with_constant(normal.direction, scene.shadow_ray_epsilon);
         tmp_ray.origin = add(hit_point, epsilon);
-        HitRecord lightHitRecord = findHitRecord(triangles, scene, tmp_ray, normals,bvhTree,bvhTreeSphere);
+        HitRecord lightHitRecord = findHitRecord(triangles, scene, tmp_ray, normals, bvhTree, bvhTreeSphere);
         if (lightHitRecord.min_t == __FLT_MAX__ || (lightHitRecord.min_t >= t && lightHitRecord.min_t > 0))
         {
             parser::Vec3f diffuse_shading_part = diffuse_shading(scene.point_lights[l], normal, hit_point, material);
@@ -603,7 +644,7 @@ parser::Vec3f apply_shading(parser::Scene &scene, HitRecord &hit_record, Ray &vi
     return color;
 }
 
-parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth,BVHTreeTri& bvhTree,BVHTreeSphere& bvhTreeSphere)
+parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::Scene &scene, Ray &view_ray, std::vector<Ray *> &normals, int current_depth, int max_depth, BVHTreeTri &bvhTree, BVHTreeSphere &bvhTreeSphere)
 {
     if (current_depth > max_depth)
     {
@@ -612,7 +653,7 @@ parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::S
         return tmp;
     }
     float min_t = __FLT_MAX__;
-    HitRecord hit_record = findHitRecord(triangles, scene, view_ray, normals,bvhTree,bvhTreeSphere);
+    HitRecord hit_record = findHitRecord(triangles, scene, view_ray, normals, bvhTree, bvhTreeSphere);
     parser::Vec3f &hit_point = hit_record.hit_point;
     parser::Material &material = hit_record.material;
     Ray &normal = hit_record.normal;
@@ -621,12 +662,14 @@ parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::S
 
     if (min_t == __FLT_MAX__)
     {
-        if(current_depth==0){
+        if (current_depth == 0)
+        {
             resultingColor.x = scene.background_color.x;
             resultingColor.y = scene.background_color.y;
             resultingColor.z = scene.background_color.z;
         }
-        else{
+        else
+        {
             resultingColor.x = 0;
             resultingColor.y = 0;
             resultingColor.z = 0;
@@ -635,7 +678,7 @@ parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::S
     else
     {
 
-        resultingColor = apply_shading(scene, hit_record, view_ray, current_depth, max_depth, normals, triangles,bvhTree,bvhTreeSphere);
+        resultingColor = apply_shading(scene, hit_record, view_ray, current_depth, max_depth, normals, triangles, bvhTree, bvhTreeSphere);
         resultingColor.x = resultingColor.x > 255 ? 255 : resultingColor.x;
         resultingColor.y = resultingColor.y > 255 ? 255 : resultingColor.y;
         resultingColor.z = resultingColor.z > 255 ? 255 : resultingColor.z;
@@ -645,7 +688,6 @@ parser::Vec3f computeColor(std::vector<parser::Triangle *> &triangles, parser::S
 
 int main(int argc, char *argv[])
 {
-    auto start = std::chrono::high_resolution_clock::now();
     // Sample usage for reading an XML scene file
     parser::Scene scene;
 
@@ -678,9 +720,9 @@ int main(int argc, char *argv[])
     {
         MySphere tmp;
         float rad = scene.spheres[s].radius;
-        tmp.center = vertices[scene.spheres[s].center_vertex_id-1];
-        tmp.min = {tmp.center.x - rad,tmp.center.y - rad,tmp.center.z - rad};
-        tmp.max = {tmp.center.x + rad,tmp.center.y + rad,tmp.center.z + rad};
+        tmp.center = vertices[scene.spheres[s].center_vertex_id - 1];
+        tmp.min = {tmp.center.x - rad, tmp.center.y - rad, tmp.center.z - rad};
+        tmp.max = {tmp.center.x + rad, tmp.center.y + rad, tmp.center.z + rad};
         tmp.sphere = &scene.spheres[s];
         spheres.push_back(tmp);
     }
@@ -688,30 +730,30 @@ int main(int argc, char *argv[])
     std::vector<parser::Triangle *> triangles;
     std::vector<MyTriangle> bvh_triangles;
     std::vector<Ray>::iterator normal_start = pre_normals.begin();
-    for(std::vector<parser::Triangle>::iterator start = pre_triangles.begin(), end = pre_triangles.end(); start != end; start++, normal_start++){
-        parser::Triangle& tri = *start;
-        parser::Vec3f& vec0=vertices[tri.indices.v0_id-1],vec1=vertices[tri.indices.v1_id-1],vec2=vertices[tri.indices.v2_id-1];
-        parser::Vec3f center = add(vec0,vec1);
-        center = add (vec2,center);
-        center = divide(center,3);
+    for (std::vector<parser::Triangle>::iterator start = pre_triangles.begin(), end = pre_triangles.end(); start != end; start++, normal_start++)
+    {
+        parser::Triangle &tri = *start;
+        parser::Vec3f &vec0 = vertices[tri.indices.v0_id - 1], vec1 = vertices[tri.indices.v1_id - 1], vec2 = vertices[tri.indices.v2_id - 1];
+        parser::Vec3f center = add(vec0, vec1);
+        center = add(vec2, center);
+        center = divide(center, 3);
         MyTriangle tmp;
         tmp.center = center;
-        parser::Vec3f min  = vec0;
-        getMin(vec1,min);
-        getMin(vec2,min);
-        parser::Vec3f max  = vec0;
-        getMax(vec1,max);
-        getMax(vec2,max);
+        parser::Vec3f min = vec0;
+        getMin(vec1, min);
+        getMin(vec2, min);
+        parser::Vec3f max = vec0;
+        getMax(vec1, max);
+        getMax(vec2, max);
         tmp.max = max;
         tmp.min = min;
         tmp.tri = &(*start);
         tmp.normal = &(*normal_start);
         bvh_triangles.push_back(tmp);
-
     }
 
-    BVHTreeTri bvhTree(2,bvh_triangles);
-    BVHTreeSphere bvhTreeSphere(2,spheres);
+    BVHTreeTri bvhTree(2, bvh_triangles);
+    BVHTreeSphere bvhTreeSphere(2, spheres);
 
     for (int i = 0; i < scene.cameras.size(); i++)
     {
@@ -724,7 +766,6 @@ int main(int argc, char *argv[])
         float r = cam.near_plane.y;
         float b = cam.near_plane.z;
         float t = cam.near_plane.w;
-        int print_counter = 0;
         float distance = cam.near_distance;
         parser::Vec3f u = cross_product(cam.gaze, cam.up);
         u = normalize(u);
@@ -750,23 +791,13 @@ int main(int argc, char *argv[])
                 Ray view_ray;
                 view_ray.origin = cam.position;
                 view_ray.direction = normalize(d);
-
-                if (print_counter++ == 500)
-                {
-                    float percentage = (float)(y * width + x) / (height * width) * 100;
-                    printf("Percentage finished: %.2f\n", percentage);
-                    print_counter = 0;
-                }
                 // compute color
-                parser::Vec3f color = computeColor(triangles, scene, view_ray, normals, 0, scene.max_recursion_depth,bvhTree,bvhTreeSphere);
+                parser::Vec3f color = computeColor(triangles, scene, view_ray, normals, 0, scene.max_recursion_depth, bvhTree, bvhTreeSphere);
                 image[3 * (y * width + x)] = std::round(color.x);
                 image[3 * (y * width + x) + 1] = std::round(color.y);
                 image[3 * (y * width + x) + 2] = std::round(color.z);
             }
         }
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "Time taken: " << duration << " milliseconds" << std::endl;
         write_ppm(name.c_str(), image, width, height);
     }
 }
