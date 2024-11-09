@@ -507,6 +507,7 @@ HitRecord findHitRecord(std::vector<parser::Triangle *> &triangles, parser::Scen
     bvhTree.getTriangles(view_ray,triangleList,normalList);
     for (int t = 0; t < triangleList.size(); t++)
     {
+        if(dot(normalList[t]->direction, view_ray.direction)>=0) continue;
         float intersection_t = intersect_triangle((*(triangleList[t])).indices, view_ray, vertices);
         if (intersection_t < min_t && intersection_t > 0)
         {
